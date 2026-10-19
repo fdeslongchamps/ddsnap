@@ -1,18 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
   <title>Ddsnap</title>
-  <!-- PSD layers (top) snap into one texture slab (bottom) -->
+  <!-- Shape: Gemini (gemini-3.8-flash) variant 1, colored with the GNOME palette -->
   <defs>
-    <clipPath id="face"><path d="M20 98 L64 82 L108 98 L64 114 Z"/></clipPath>
+    <clipPath id="face"><polygon points="64,68 100,86 64,104 28,86"/></clipPath>
   </defs>
-  <path d="M20 30 L64 14 L108 30 L64 46 Z" fill="#99c1f1"/>
-  <path d="M20 44 L64 28 L108 44 L64 60 Z" fill="#ffa348"/>
-  <path d="M20 58 L64 42 L108 58 L64 74 Z" fill="#8ff0a4"/>
-  <path d="M64 70 v10 m-6 -4 l6 6 l6 -6" fill="none" stroke="#77767b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M20 98 L64 114 L64 120 L20 104 Z" fill="#1a5fb4"/>
-  <path d="M108 98 L64 114 L64 120 L108 104 Z" fill="#1c71d8"/>
-  <path d="M20 98 L64 82 L108 98 L64 114 Z" fill="#3584e4"/>
+  <polygon points="64,12 92,26 64,40 36,26" fill="#99c1f1" stroke="#62a0ea" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="64,22 92,36 64,50 36,36" fill="#ffbe6f" stroke="#ff7800" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="64,32 92,46 64,60 36,46" fill="#8ff0a4" stroke="#2ec27e" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M64 52 L64 68 M59 63 L64 68 L69 63" fill="none" stroke="#77767b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="28,86 64,104 64,116 28,98" fill="#1a5fb4"/>
+  <polygon points="100,86 64,104 64,116 100,98" fill="#1c71d8"/>
+  <polygon points="64,68 100,86 64,104 28,86" fill="#3584e4"/>
   <g clip-path="url(#face)">
-    <circle cx="76" cy="95" r="5" fill="#f6d32d"/>
-    <path d="M20 102 Q48 88 64 98 T108 96 V120 H20 Z" fill="#33d17a"/>
+    <ellipse cx="80" cy="80" rx="9" ry="5" fill="#f6d32d"/>
+    <path d="M24 96 C40 78 60 82 78 94 L64 106 L20 96 Z" fill="#33d17a"/>
   </g>
+  <polygon points="64,68 100,86 100,98 64,116 28,98 28,86" fill="none" stroke="#1a5fb4" stroke-width="2" stroke-linejoin="round"/>
+  <line x1="64" y1="104" x2="64" y2="116" stroke="#0b4a8f" stroke-width="2"/>
 </svg>
