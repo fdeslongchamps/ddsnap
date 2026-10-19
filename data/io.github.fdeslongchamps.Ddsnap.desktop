@@ -9,3 +9,6 @@ Categories=Graphics;2DGraphics;
 MimeType=image/vnd.adobe.photoshop;image/x-photoshop;
 Keywords=dds;psd;texture;layers;calques;mod;skin;game;jeu;
 StartupNotify=true
+# Use the discrete GPU (NVIDIA) for the preview when one is present; GNOME falls back otherwise.
+PrefersNonDefaultGPU=true
+X-KDE-RunOnDiscreteGpu=true
