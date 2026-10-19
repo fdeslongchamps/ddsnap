@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Application
 Name=Ddsnap
-Comment=PSD → DDS pour les skins Assetto Corsa
+Comment=Choisir des calques PSD et les exporter en textures DDS
 Exec=ddsnap-gui %f
 Icon=io.github.fdeslongchamps.Ddsnap
 Terminal=false
 Categories=Graphics;2DGraphics;
 MimeType=image/vnd.adobe.photoshop;image/x-photoshop;
-Keywords=dds;psd;assetto;skin;texture;
+Keywords=dds;psd;texture;layers;calques;mod;skin;game;jeu;
 StartupNotify=true

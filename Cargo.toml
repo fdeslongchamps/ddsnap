@@ -3,7 +3,7 @@ name = "ddsnap"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.92"
-description = "PSD → DDS pour skins Assetto Corsa"
+description = "Calques PSD → textures DDS (jeux, mods, skins)"
 license = "MIT"
 
 [dependencies]

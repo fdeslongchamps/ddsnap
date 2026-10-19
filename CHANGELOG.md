@@ -15,7 +15,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) · versions : 
   barre de progression et journal en direct.
 - Journal `~/.local/state/ddsnap/ddsnap.log` (rotation 5 Mo × 3), `ddsnap doctor`,
   Menu › Diagnostic et « Copier le rapport » sur chaque erreur.
-- `install.sh` : venv, binaires dans `~/.local/bin`, entrée de menu et icône.
+- `install.sh` : venv, binaires dans `~/.local/bin`, entrée de menu et icône (couleur + symbolique).
+
+### Modifié
+- Présentation générique : « calques PSD → textures DDS », plus seulement Assetto Corsa.
 - Note quand un PSD 16 bits ou CMJN est converti en RVB 8 bits.
 
 ## [0.1.0] - 2026-10-19

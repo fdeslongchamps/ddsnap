@@ -1,6 +1,6 @@
 # Ddsnap
 
-PSD → DDS pour les skins Assetto Corsa. Spec : [SPEC.md](SPEC.md) · décisions : [docs/decisions/](docs/decisions/).
+Choisir des calques d'un PSD et les exporter en textures DDS (BC1/BC3/BC7, mipmaps) pour les jeux, les mods et les skins. Né pour les skins Assetto Corsa, utilisable pour toute texture DDS. Spec : [SPEC.md](SPEC.md) · décisions : [docs/decisions/](docs/decisions/).
 
 État : CLI (`ddsnap layers`, `ddsnap export`) et application GNOME (`ddsnap-gui`, à tester).
 

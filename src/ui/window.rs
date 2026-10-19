@@ -1516,7 +1516,7 @@ impl Window {
             .application_name("Ddsnap")
             .application_icon(APP_ID)
             .version(env!("CARGO_PKG_VERSION"))
-            .comments("PSD → DDS pour skins Assetto Corsa")
+            .comments("Choisir des calques PSD et les exporter en textures DDS")
             .license_type(gtk::License::MitX11)
             .build()
             .present(Some(&self.window));

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <title>Ddsnap</title>
+  <path d="M2 4 L8 1.5 L14 4 L8 6.5 Z" fill="none" stroke="#241f31" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M8 7 V9.6 M6.6 8.4 L8 9.8 L9.4 8.4" fill="none" stroke="#241f31" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1.5 11.5 L8 9 L14.5 11.5 V12.8 L8 15.3 L1.5 12.8 Z" fill="#241f31"/>
+</svg>

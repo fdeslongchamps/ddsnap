@@ -11,9 +11,10 @@ BIN="$HOME/.local/bin"
 DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 DESKTOP="$DATA/applications/$ID.desktop"
 ICON="$DATA/icons/hicolor/scalable/apps/$ID.svg"
+SYMBOLIC="$DATA/icons/hicolor/symbolic/apps/$ID-symbolic.svg"
 
 if [[ "${1:-}" == "--remove" ]]; then
-    rm -f "$BIN/ddsnap" "$BIN/ddsnap-gui" "$DESKTOP" "$ICON"
+    rm -f "$BIN/ddsnap" "$BIN/ddsnap-gui" "$DESKTOP" "$ICON" "$SYMBOLIC"
     echo "Ddsnap désinstallé (venv et journal conservés)."
     exit 0
 fi
@@ -35,6 +36,7 @@ install -Dm755 "$ROOT/target/release/ddsnap-gui" "$BIN/ddsnap-gui"
 mkdir -p "$(dirname "$DESKTOP")"
 sed "s|^Exec=ddsnap-gui|Exec=$BIN/ddsnap-gui|" "$ROOT/data/$ID.desktop" >"$DESKTOP"
 install -Dm644 "$ROOT/data/icons/$ID.svg" "$ICON"
+install -Dm644 "$ROOT/data/icons/$ID-symbolic.svg" "$SYMBOLIC"
 update-desktop-database "$DATA/applications" 2>/dev/null || true
 gtk4-update-icon-cache -q "$DATA/icons/hicolor" 2>/dev/null || true
 

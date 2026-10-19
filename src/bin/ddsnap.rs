@@ -13,7 +13,7 @@ use ddsnap::core::layers::LayerTree;
 use ddsnap::core::recipe::Recipe;
 
 #[derive(Parser)]
-#[command(version, about = "PSD → DDS pour skins Assetto Corsa")]
+#[command(version, about = "Calques PSD → textures DDS")]
 struct Cli {
     #[command(subcommand)]
     command: Cmd,
