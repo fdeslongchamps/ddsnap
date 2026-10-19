@@ -201,3 +201,50 @@ fn invalid_recipe_writes_nothing() {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+#[test]
+#[ignore]
+fn output_folder_from_cli_or_recipe() {
+    let dir = temp_dir("out-dir");
+    let psd = make_psd(&dir);
+    let out_dir = dir.join("AC skin (42)");
+    std::fs::create_dir(&out_dir).unwrap();
+
+    let out = ddsnap(&[
+        "export".as_ref(),
+        psd.as_os_str(),
+        "--out-dir".as_ref(),
+        out_dir.as_os_str(),
+    ]);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(dds_files(&out_dir), ["skin.dds"]);
+    assert!(dds_files(&dir).is_empty());
+
+    std::fs::remove_file(out_dir.join("skin.dds")).unwrap();
+    let recipe = r#"{"version": 1, "output_dir": "AC skin (42)",
+        "outputs": [{"file": "livery.dds", "visible": [{"id": 10, "path": "Red"}]}]}"#;
+    std::fs::write(dir.join("skin.ddsnap.json"), recipe).unwrap();
+    let out = ddsnap(&["export".as_ref(), psd.as_os_str()]);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(dds_files(&out_dir), ["livery.dds"]);
+
+    let missing = dir.join("nope");
+    let out = ddsnap(&[
+        "export".as_ref(),
+        psd.as_os_str(),
+        "--out-dir".as_ref(),
+        missing.as_os_str(),
+    ]);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("dossier de sortie introuvable"));
+    assert!(!missing.exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}

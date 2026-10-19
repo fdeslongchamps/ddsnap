@@ -151,6 +151,9 @@ Fichiers : `src/ui/{preview,layer_tree}.rs`, `src/core/render_queue.rs`, `data/u
 
 ### T8 — Panneau Sorties lié à la recette  ·  dépend : T4, T7  ·  M
 
+- Bouton « Dossier de sortie… » (`gtk::FileDialog::select_folder`) → `Recipe.output_dir`
+  (déjà géré par `core` et la CLI `--out-dir`) ; libellé du dossier courant, « dossier du PSD »
+  par défaut (demandé par l'utilisateur).
 - `ui/outputs_panel.rs` : liste des sorties, ajouter / dupliquer / renommer / supprimer ;
   format, taille, mipmaps ; changer de sortie restaure ses calques cochés.
 - Sauvegarde de la recette à chaque modification (écriture atomique) ; bandeau

@@ -26,7 +26,7 @@ minutes.
 
 ```bash
 ddsnap layers livery.psd [--json]
-ddsnap export livery.psd [--output livery] [--format auto|bc1|bc3|bc7|rgba8] [--size source|4096|2048|1024] [--no-mipmaps]
+ddsnap export livery.psd [--output livery] [--out-dir dossier] [--format auto|bc1|bc3|bc7|rgba8] [--size source|4096|2048|1024] [--no-mipmaps]
 ```
 
 Les sorties se règlent dans `livery.ddsnap.json` à côté du PSD (voir SPEC.md › Recette).

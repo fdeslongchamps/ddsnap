@@ -32,7 +32,9 @@ moteur depuis un terminal et, plus tard, depuis PhotoCraft.
    compressé »** montre l'image décodée depuis le DDS réellement produit, pour voir les
    artefacts BC1/BC3 avant d'enregistrer. Bascule rapide Avant/Après.
 6. **« Exporter »** (Ctrl+E) écrit la sortie active ; **« Tout exporter »** (Ctrl+Maj+E)
-   écrit toutes les sorties. Dossier de sortie par défaut : celui du PSD. Si le fichier existe,
+   écrit toutes les sorties. **Dossier de sortie** : bouton « Dossier de sortie… » (sélecteur
+   de dossier GNOME) au-dessus de la liste des sorties, mémorisé dans la recette ; sans choix,
+   celui du PSD (ex. PSD dans `Documents`, DDS directement dans `…/skins/<skin>/`). Si le fichier existe,
    confirmation « Remplacer » (c'est le cas normal : on réexporte la skin), jamais le PSD.
    Pendant tout calcul (ouverture, aperçu, export), une **barre de progression** affiche
    l'étape en cours et le temps écoulé (« Rendu de 36 calques (psd-tools)… 42 s »,
@@ -70,7 +72,10 @@ n'écrit rien) :
   indifférente), différent du PSD et des autres sorties. Sans séparateur, `..` ne peut viser
   aucun autre dossier : `livery..v2.dds` est accepté. Une recette éditée à la main ne peut
   donc jamais écrire ailleurs que dans le dossier du PSD ni écraser le PSD ;
-- `format`, `size`, `mipmaps` sont facultatifs (défauts : `auto`, `source`, `true`).
+- `format`, `size`, `mipmaps` sont facultatifs (défauts : `auto`, `source`, `true`) ;
+- `output_dir` (facultatif, commun à toutes les sorties) : dossier des DDS, absolu ou relatif
+  au dossier du PSD ; absent = dossier du PSD. Il doit exister au moment de l'export, sinon
+  erreur avant tout rendu (« dossier de sortie introuvable »), rien n'est écrit.
 
 Sans recette, la recette par défaut (une sortie `<nom>.dds`, Auto, taille source, mipmaps,
 calques visibles du PSD) est construite en mémoire ; la CLI ne l'écrit pas, la GUI l'écrit à
@@ -79,6 +84,7 @@ la première modification.
 ```json
 {
   "version": 1,
+  "output_dir": "/home/moi/.steam/…/assettocorsa/content/cars/ks_porsche_911_gt3_r/skins/42",
   "outputs": [
     {
       "file": "livery.dds",
@@ -124,6 +130,7 @@ la première modification.
 ddsnap export livery.psd                  # toutes les sorties de livery.ddsnap.json
                                           #   (sans recette : <nom>.dds, calques visibles du PSD)
 ddsnap export livery.psd --output livery  # une seule sortie (« livery » ou « livery.dds »)
+ddsnap export livery.psd --out-dir ~/ac/skins/42   # dossier de sortie pour cet appel
 ddsnap export livery.psd --format bc3 --size 2048 --no-mipmaps
                                           # remplace les réglages de la recette pour cet appel
 ddsnap layers livery.psd                  # arbre des calques (texte ou --json)

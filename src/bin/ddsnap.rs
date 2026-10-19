@@ -42,6 +42,9 @@ enum Cmd {
         /// Désactive les mipmaps
         #[arg(long)]
         no_mipmaps: bool,
+        /// Dossier où écrire les DDS (défaut : celui de la recette, sinon celui du PSD)
+        #[arg(long)]
+        out_dir: Option<PathBuf>,
     },
 }
 
@@ -71,6 +74,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             format,
             size,
             no_mipmaps,
+            out_dir,
         } => {
             let progress = Progress::start();
             progress.step("démarrage de l'assistant psd-tools");
@@ -100,7 +104,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     found
                 }
             };
-            let dir = psd.parent().unwrap_or(std::path::Path::new("."));
+            let dir = out_dir.unwrap_or_else(|| recipe.output_dir(&psd));
+            if !dir.is_dir() {
+                return Err(format!("dossier de sortie introuvable : {}", dir.display()).into());
+            }
             for out in outputs {
                 let resolution = out.resolve(&tree);
                 let mut settings = out.settings();

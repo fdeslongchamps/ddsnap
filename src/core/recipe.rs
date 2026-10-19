@@ -16,6 +16,9 @@ pub const VERSION: u32 = 1;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Recipe {
     pub version: u32,
+    /// Where the DDS files go: absolute, or relative to the PSD's folder. None = PSD's folder.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_dir: Option<PathBuf>,
     pub outputs: Vec<Output>,
 }
 
@@ -102,11 +105,20 @@ pub fn validate_output_name<'a>(
 }
 
 impl Recipe {
+    pub fn output_dir(&self, psd: &Path) -> PathBuf {
+        let psd_dir = psd.parent().unwrap_or(Path::new("."));
+        match &self.output_dir {
+            Some(dir) => psd_dir.join(dir), // `join` keeps an absolute `dir` as is
+            None => psd_dir.to_path_buf(),
+        }
+    }
+
     /// One output named after the PSD, with the layers visible in the PSD.
     pub fn default_for(psd: &Path, tree: &LayerTree) -> Recipe {
         let stem = psd.file_stem().unwrap_or_default().to_string_lossy();
         Recipe {
             version: VERSION,
+            output_dir: None,
             outputs: vec![Output {
                 file: format!("{stem}.dds"),
                 format: Format::Auto,
@@ -446,6 +458,22 @@ mod tests {
         let err = Recipe::load(&psd, &original()).unwrap_err();
         let _ = fs::remove_dir_all(&dir);
         assert!(matches!(err, RecipeError::Version(2)), "{err}");
+    }
+
+    #[test]
+    fn output_dir_defaults_to_psd_folder() {
+        let psd = Path::new("/skins/src/livery.psd");
+        let mut recipe = Recipe::default_for(psd, &original());
+        assert_eq!(recipe.output_dir(psd), Path::new("/skins/src"));
+        recipe.output_dir = Some("../export".into());
+        assert_eq!(recipe.output_dir(psd), Path::new("/skins/src/../export"));
+        recipe.output_dir = Some("/ac/skins/42".into());
+        assert_eq!(recipe.output_dir(psd), Path::new("/ac/skins/42"));
+        let json = serde_json::to_string(&Recipe::default_for(psd, &original())).unwrap();
+        assert!(
+            !json.contains("output_dir"),
+            "absent tant qu'il n'est pas choisi"
+        );
     }
 
     #[test]

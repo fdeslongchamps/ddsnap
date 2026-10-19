@@ -10,6 +10,10 @@ Statut : accepté · 2026-10-19
   taille source, mipmaps, calques visibles du PSD). La CLI ne l'écrit pas ; la GUI (T8) la
   sauvegardera à la première modification.
 - Champs `format`, `size`, `mipmaps` facultatifs (défauts : auto, source, true).
+- `output_dir` facultatif, commun à la recette : absolu ou relatif au dossier du PSD, absent =
+  dossier du PSD. Ajout compatible (reste `version: 1`). Vérifié avant le premier rendu.
+  Le nom de fichier reste validé (simple nom `.dds`), donc le PSD ne peut pas être écrasé ;
+  choisir un dossier qui contient déjà le DDS de la skin est le cas normal (remplacement).
 - **Calques** : `{id, path}`. Résolution : `layer_id` d'abord ; sinon chemin échappé
   (`Groupe/Calque`, `\/` et `\\` dans les noms) s'il désigne **un seul** calque.
   Jamais la position.
@@ -26,6 +30,7 @@ Statut : accepté · 2026-10-19
 
 ## Conséquences
 
-- Une recette éditée à la main ne peut écrire que dans le dossier du PSD, jamais sur le PSD.
+- Une recette éditée à la main ne peut écrire que dans **son** dossier de sortie, et jamais
+  sur le PSD (extension `.dds` imposée).
 - Les sorties sont rendues l'une après l'autre (un rendu psd-tools par sortie, ≈ 1 min en
   4096² d'après ADR-001).
