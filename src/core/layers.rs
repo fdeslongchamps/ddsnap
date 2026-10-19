@@ -47,11 +47,22 @@ pub fn join_path(names: &[String]) -> String {
 }
 
 impl LayerTree {
-    /// Indices of the layers visible in the PSD as saved (the default recipe).
+    /// Indices of the layers visible in the PSD as saved (the default recipe): the layer and
+    /// every group above it are visible, as in Photoshop, where a hidden group hides its content.
     pub fn psd_visible(&self) -> Vec<usize> {
+        let by_index = |i: usize| self.layers.iter().find(|l| l.index == i);
         self.layers
             .iter()
-            .filter(|l| l.visible)
+            .filter(|layer| {
+                let mut node = Some(*layer);
+                while let Some(l) = node {
+                    if !l.visible {
+                        return false;
+                    }
+                    node = l.parent.and_then(by_index);
+                }
+                true
+            })
             .map(|l| l.index)
             .collect()
     }
@@ -82,6 +93,13 @@ mod tests {
         let tree = fixture_tree();
         assert_eq!(tree.layers[2].path_string(), "G/Blue\\/Bleu");
         assert_eq!(join_path(&["a\\b".into(), "c".into()]), "a\\\\b/c");
+    }
+
+    #[test]
+    fn psd_visible_skips_children_of_hidden_groups() {
+        let mut tree = fixture_tree();
+        tree.layers[1].visible = false; // group G hidden, its child Blue still flagged visible
+        assert_eq!(tree.psd_visible(), [0]);
     }
 
     #[test]
