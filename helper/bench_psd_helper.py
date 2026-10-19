@@ -59,6 +59,11 @@ def bench(path):
     for scale in (1.0, 0.25):
         t = time.perf_counter()
         header, data = send(proc, {"cmd": "render", "visible": visible, "scale": scale})
+        if not header["ok"]:
+            print(f"{path}: render {scale:.0%} : {header['kind']} — {header['error']}")
+            send(proc, {"cmd": "quit"})
+            proc.wait()
+            return
         timings[scale] = time.perf_counter() - t
         if scale == 1.0:
             full = np.frombuffer(data, np.uint8).reshape(header["height"], header["width"], 4)

@@ -13,7 +13,8 @@ fi
 
 python3 -m venv "$VENV"
 "$VENV/bin/pip" install --quiet --upgrade pip
-"$VENV/bin/pip" install --quiet "psd-tools==$PSD_TOOLS_VERSION"
+# [composite]: scipy etc., needed to render layer effects such as strokes.
+"$VENV/bin/pip" install --quiet "psd-tools[composite]==$PSD_TOOLS_VERSION"
 if [[ "${1:-}" == "--dev" ]]; then
     "$VENV/bin/pip" install --quiet pytest
 fi
