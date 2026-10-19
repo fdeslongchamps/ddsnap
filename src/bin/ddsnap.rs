@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 use clap::{Parser, Subcommand};
 use ddsnap::core::dds::{Format, Size};
+use ddsnap::core::diagnostics;
 use ddsnap::core::export;
 use ddsnap::core::helper::Helper;
 use ddsnap::core::layers::LayerTree;
@@ -27,6 +28,8 @@ enum Cmd {
         #[arg(long)]
         json: bool,
     },
+    /// Vérifie Python et psd-tools, affiche versions et fin du journal
+    Doctor,
     /// Exporte les sorties de <psd>.ddsnap.json (sans recette : les calques visibles du PSD)
     Export {
         psd: PathBuf,
@@ -53,6 +56,7 @@ fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("ddsnap : {e}");
+            diagnostics::log(&format!("ddsnap (CLI) : erreur : {e}"));
             ExitCode::FAILURE
         }
     }
@@ -60,6 +64,13 @@ fn main() -> ExitCode {
 
 fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
+        Cmd::Doctor => {
+            let report = diagnostics::report();
+            println!("{report}");
+            if report.starts_with("PROBLÈME") {
+                return Err("environnement incomplet (voir ci-dessus)".into());
+            }
+        }
         Cmd::Layers { psd, json } => {
             let tree = Helper::spawn()?.open(&psd)?;
             if json {
@@ -81,6 +92,9 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let mut helper = Helper::spawn()?;
             progress.step(&format!("ouverture du PSD {}", psd.display()));
             let tree = helper.open(&psd)?;
+            if let Some(note) = tree.conversion_note() {
+                eprintln!("note : {note}");
+            }
             progress.step("lecture de la recette");
             // Validated here: every output name is a plain .dds name, so `dir.join` stays in dir.
             let recipe = Recipe::load(&psd, &tree)?;
@@ -171,7 +185,9 @@ impl Progress {
     }
 
     fn step(&self, label: &str) {
-        eprintln!("[{:>6.1} s] {label}", self.start.elapsed().as_secs_f64());
+        let line = format!("[{:>6.1} s] {label}", self.start.elapsed().as_secs_f64());
+        eprintln!("{line}");
+        diagnostics::log(&format!("ddsnap (CLI) {line}"));
         if let Ok(mut current) = self.current.lock() {
             *current = label.to_string();
         }

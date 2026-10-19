@@ -127,6 +127,11 @@ Fichiers : `CHANGELOG.md`, `scripts/release.sh`, `README.md`
 
 ## Phase 2 — GUI
 
+> 2026-10-19 : T6–T10 et T12 codés (compilent, clippy propre), **pas encore testés** : l'utilisateur
+> teste sur le laptop, puis on corrige. Écarts : UI construite en code (pas de Blueprint), zoom
+> = ajusté / taille réelle (pas de molette), T11 partiel (note 16 bits/CMJN ; assistant mort
+> relancé à la tâche suivante). Les critères ci-dessous restent à cocher après les tests.
+
 ### T6 — GUI : accueil, ouverture du PSD, arbre des calques  ·  dépend : T2  ·  M
 
 Passe `/ui-ux-pro-max:design` sur les maquettes (dans le cadre des GNOME HIG) au début de la tâche.

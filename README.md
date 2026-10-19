@@ -8,9 +8,12 @@ PSD → DDS pour les skins Assetto Corsa. Spec : [SPEC.md](SPEC.md) · décision
 
 ```bash
 sudo apt install build-essential python3-venv libgtk-4-dev libadwaita-1-dev
-bash scripts/setup-venv.sh                     # une fois
-cargo run --release --bin ddsnap-gui [livery.psd]
+./install.sh              # venv psd-tools, ~/.local/bin/ddsnap{,-gui}, entrée de menu, icône
+./install.sh --remove     # désinstalle
 ```
+
+Ensuite « Ddsnap » dans les applications, ou `ddsnap-gui livery.psd`. En cas de souci :
+Menu › Diagnostic (ou `ddsnap doctor`) ; le journal est dans `~/.local/state/ddsnap/ddsnap.log`.
 
 Glissez un PSD dans la fenêtre (ou Ctrl+O). À gauche : les sorties (une par DDS), leurs
 réglages et le dossier de sortie (par défaut celui du PSD, donc celui de la skin), puis les
@@ -40,6 +43,7 @@ minutes.
 
 ```bash
 ddsnap layers livery.psd [--json]
+ddsnap doctor
 ddsnap export livery.psd [--output livery] [--out-dir dossier] [--format auto|bc1|bc3|bc7|rgba8] [--size source|4096|2048|1024] [--no-mipmaps]
 ```
 

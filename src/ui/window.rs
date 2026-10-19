@@ -11,6 +11,7 @@ use std::time::Duration;
 
 use adw::prelude::*;
 use ddsnap::core::dds::{self, Format, Size};
+use ddsnap::core::diagnostics;
 use ddsnap::core::export::{self, Report, Settings};
 use ddsnap::core::helper::HelperError;
 use ddsnap::core::layers::LayerTree;
@@ -138,6 +139,7 @@ impl Window {
         export.add_css_class("suggested-action");
         let main_menu = gio::Menu::new();
         main_menu.append(Some("Sans aperçu"), Some("win.no-preview"));
+        main_menu.append(Some("Diagnostic"), Some("win.diagnostic"));
         main_menu.append(Some("À propos de Ddsnap"), Some("win.about"));
         let menu = gtk::MenuButton::builder()
             .icon_name("open-menu-symbolic")
@@ -408,6 +410,7 @@ impl Window {
         self.action("export", |this| this.export(false));
         self.action("export-all", |this| this.export(true));
         self.action("about", |this| this.about());
+        self.action("diagnostic", |this| this.diagnostic());
         let no_preview = gio::SimpleAction::new_stateful("no-preview", None, &false.to_variant());
         let this = Rc::downgrade(self);
         no_preview.connect_activate(move |action, _| {
@@ -701,6 +704,10 @@ impl Window {
                 (Recipe::default_for(&psd, &tree), false, Some(problem))
             }
         };
+        if let Some(note) = tree.conversion_note() {
+            self.log(&note);
+            self.toast(&note);
+        }
         for layer in tree
             .layers
             .iter()
@@ -1435,10 +1442,15 @@ impl Window {
     // ── Messages ───────────────────────────────────────────────────────────
 
     fn log(&self, line: &str) {
-        let time = glib::DateTime::now_local()
-            .and_then(|t| t.format("%H:%M:%S"))
-            .unwrap_or_default();
+        let now = glib::DateTime::now_local().ok();
+        let stamp = |f: &str| {
+            now.as_ref()
+                .and_then(|t| t.format(f).ok())
+                .unwrap_or_default()
+        };
+        let time = stamp("%H:%M:%S");
         eprintln!("[{time}] {line}");
+        diagnostics::log(&format!("[{}] {line}", stamp("%Y-%m-%d %H:%M:%S")));
         let buffer = self.log.buffer();
         buffer.insert(&mut buffer.end_iter(), &format!("[{time}] {line}\n"));
         let end = buffer.create_mark(None, &buffer.end_iter(), false);
@@ -1454,7 +1466,39 @@ impl Window {
     fn error(&self, heading: &str, body: &str) {
         self.log(&format!("erreur : {heading} : {body}"));
         let dialog = adw::AlertDialog::new(Some(heading), Some(body));
+        dialog.add_response("report", "Copier le rapport");
         dialog.add_response("ok", "OK");
+        dialog.set_default_response(Some("ok"));
+        let window = self.window.clone();
+        dialog.connect_response(Some("report"), move |_, _| {
+            window.clipboard().set_text(&diagnostics::report());
+        });
+        dialog.present(Some(&self.window));
+    }
+
+    /// Aide › Diagnostic: is psd-tools ready, versions, end of the log.
+    fn diagnostic(&self) {
+        let report = diagnostics::report();
+        let text = gtk::TextView::builder()
+            .editable(false)
+            .monospace(true)
+            .wrap_mode(gtk::WrapMode::WordChar)
+            .build();
+        text.buffer().set_text(&report);
+        let scroller = gtk::ScrolledWindow::builder()
+            .child(&text)
+            .min_content_height(320)
+            .min_content_width(560)
+            .build();
+        let dialog = adw::AlertDialog::new(Some("Diagnostic"), None);
+        dialog.set_extra_child(Some(&scroller));
+        dialog.add_response("copy", "Copier le rapport");
+        dialog.add_response("close", "Fermer");
+        dialog.set_default_response(Some("close"));
+        let window = self.window.clone();
+        dialog.connect_response(Some("copy"), move |_, _| {
+            window.clipboard().set_text(&report);
+        });
         dialog.present(Some(&self.window));
     }
 

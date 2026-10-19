@@ -88,6 +88,16 @@ impl LayerTree {
             .collect()
     }
 
+    /// Says when the DDS will not hold the PSD's colors as stored (16/32 bits, CMYK…).
+    pub fn conversion_note(&self) -> Option<String> {
+        (self.depth != 8 || self.color_mode != "RGB").then(|| {
+            format!(
+                "PSD {} {} bits : converti en RVB 8 bits pour le DDS",
+                self.color_mode, self.depth
+            )
+        })
+    }
+
     /// True when `visible` is exactly the PSD's own visibility, so Photoshop's saved image
     /// can be exported as is (ADR-005).
     pub fn is_psd_visibility(&self, visible: &[usize]) -> bool {
