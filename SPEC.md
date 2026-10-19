@@ -1,6 +1,6 @@
-# Spec : psd2dds (nom provisoire) — PSD → DDS pour skins Assetto Corsa, GUI GNOME
+# Spec : Ddsnap — PSD → DDS pour skins Assetto Corsa, GUI GNOME
 
-Statut : **brouillon, en attente d'approbation** · 2026-10-19
+Statut : **approuvée** · 2026-10-19
 Projet frère : [`../Gui_FFMEG`](../Gui_FFMEG/SPEC.md) (même stack, mêmes conventions).
 
 ## Objectif
@@ -40,7 +40,7 @@ moteur depuis un terminal et, plus tard, depuis PhotoCraft.
 
 ### Recette par PSD
 
-Les sorties d'un PSD sont mémorisées dans un fichier **à côté du PSD** : `<nom>.psd2dds.json`
+Les sorties d'un PSD sont mémorisées dans un fichier **à côté du PSD** : `<nom>.ddsnap.json`
 (lisible, versionnable avec la skin, réutilisé par la CLI). Les calques y sont identifiés par
 leur chemin (`Groupe/Sous-groupe/Calque`) **et** leur index ; si un calque a été renommé ou
 supprimé depuis, l'app le signale (« 2 calques de la recette introuvables ») au lieu de
@@ -80,10 +80,10 @@ l'ignorer en silence.
 ### CLI (même cœur, sans GTK)
 
 ```bash
-psd2dds export livery.psd                  # toutes les sorties de livery.psd2dds.json
-psd2dds export livery.psd --output livery  # une seule sortie
-psd2dds layers livery.psd                  # arbre des calques (texte ou --json)
-psd2dds doctor                             # vérifie python3, psd-tools, versions, chemins
+ddsnap export livery.psd                  # toutes les sorties de livery.ddsnap.json
+ddsnap export livery.psd --output livery  # une seule sortie
+ddsnap layers livery.psd                  # arbre des calques (texte ou --json)
+ddsnap doctor                             # vérifie python3, psd-tools, versions, chemins
 ```
 
 La CLI est la frontière d'intégration : un script, un `Makefile`, ou plus tard PhotoCraft
@@ -91,14 +91,14 @@ l'appellent sans dépendre de l'interface graphique.
 
 ### Diagnostic (« pouvoir réparer mes problèmes »)
 
-- Journal rotatif dans `~/.local/state/psd2dds/psd2dds.log` (opérations, durées, erreurs,
-  stderr Python complet). `PSD2DDS_LOG=debug` pour plus de détail.
+- Journal rotatif dans `~/.local/state/ddsnap/ddsnap.log` (opérations, durées, erreurs,
+  stderr Python complet). `DDSNAP_LOG=debug` pour plus de détail.
 - Toute erreur affiche : quoi (phrase en français), où (fichier, calque), et un bouton
   **« Copier le rapport »** = version de l'app, versions python/psd-tools, OS, dernières
   lignes du journal. C'est ce que je colle dans Claude Code ou une issue pour qu'on corrige.
-- `psd2dds doctor` (et Aide › Diagnostic dans l'app) : vérifie l'environnement et dit
+- `ddsnap doctor` (et Aide › Diagnostic dans l'app) : vérifie l'environnement et dit
   exactement quoi installer.
-- Un PSD qui pose problème doit pouvoir devenir un test : `psd2dds layers --json` + le
+- Un PSD qui pose problème doit pouvoir devenir un test : `ddsnap layers --json` + le
   rendu attendu servent de fixtures de régression.
 
 ## Stack technique
@@ -126,7 +126,7 @@ PNG, pour éviter un encodage inutile.
 ← {"ok":true,"width":1024,"height":1024,"bytes":4194304}  + 4194304 octets RGBA
 ```
 
-psd-tools est installé dans un venv dédié `~/.local/share/psd2dds/venv` par `install.sh`
+psd-tools est installé dans un venv dédié `~/.local/share/ddsnap/venv` par `install.sh`
 (Ubuntu interdit `pip install` système, PEP 668).
 
 Distributions cibles : Ubuntu 24.04 LTS et plus récentes. Paquets système requis :
@@ -140,8 +140,8 @@ sudo apt install python3 python3-venv libgtk-4-dev libadwaita-1-dev blueprint-co
 ./install.sh                               # venv psd-tools + binaire + .desktop
 
 # Dev
-cargo run --bin psd2dds-gui                # l'app
-cargo run --bin psd2dds -- export x.psd    # la CLI
+cargo run --bin ddsnap-gui                # l'app
+cargo run --bin ddsnap -- export x.psd    # la CLI
 cargo build --release
 
 # Qualité
@@ -152,7 +152,7 @@ cargo test -- --ignored                    # intégration, nécessite le venv ps
 
 # Release
 git tag -a vX.Y.Z -m "vX.Y.Z" && git push --tags
-gh release create vX.Y.Z dist/psd2dds-vX.Y.Z-x86_64-linux.tar.gz --notes-file <notes>
+gh release create vX.Y.Z dist/ddsnap-vX.Y.Z-x86_64-linux.tar.gz --notes-file <notes>
 ```
 
 ## Structure du projet
@@ -171,13 +171,13 @@ src/
   core/                     → logique pure, AUCUNE dépendance GTK
     helper.rs               → protocole JSON-lignes avec l'assistant Python
     layers.rs               → arbre de calques, chemins, résolution recette ↔ PSD
-    recipe.rs               → lecture/écriture/migration de <nom>.psd2dds.json
+    recipe.rs               → lecture/écriture/migration de <nom>.ddsnap.json
     dds.rs                  → choix du format (Auto), redimensionnement, encodage, décodage pour aperçu
     export.rs               → une sortie de bout en bout : rendu → DDS → écriture atomique
     diagnostics.rs          → journal, rapport copiable, doctor
   bin/
-    psd2dds.rs              → CLI
-    psd2dds-gui.rs          → point d'entrée AdwApplication
+    ddsnap.rs               → CLI
+    ddsnap-gui.rs           → point d'entrée AdwApplication
   ui/                       → widgets, présentation uniquement
     window.rs, layer_tree.rs, preview.rs, outputs_panel.rs
 tests/
@@ -229,7 +229,7 @@ pub fn auto_format(rgba: &[u8]) -> DdsFormat {
   chaque commit.
 - SemVer : `v0.x.y` jusqu'à la sortie du MVP, puis `v1.0.0`. `CHANGELOG.md` tenu à jour
   (Keep a Changelog), une section par version.
-- Release = tag annoté + archive `psd2dds-vX.Y.Z-x86_64-linux.tar.gz` (binaires, `install.sh`,
+- Release = tag annoté + archive `ddsnap-vX.Y.Z-x86_64-linux.tar.gz` (binaires, `install.sh`,
   `.desktop`, icône) + notes tirées du CHANGELOG.
 
 ## Limites
@@ -247,7 +247,7 @@ pub fn auto_format(rgba: &[u8]) -> DdsFormat {
 ## Hors MVP (et pourquoi)
 
 - **Plugin PhotoCraft** — son API de plugins WebAssembly n'est pas documentée et le projet est
-  en alpha. La CLI `psd2dds` est la frontière prête pour ça ; on y reviendra quand l'API sera
+  en alpha. La CLI `ddsnap` est la frontière prête pour ça ; on y reviendra quand l'API sera
   stable. PhotoCraft n'écrit pas encore de DDS, donc le besoin reste réel.
 - **Autres sims** (iRacing, rFactor 2, ACC) — les préréglages sont des données ; on en
   ajoutera si besoin.
@@ -265,23 +265,23 @@ pub fn auto_format(rgba: &[u8]) -> DdsFormat {
 3. Le DDS exporté s'ouvre dans Assetto Corsa / Content Manager (Showroom) avec les bons
    calques, des mipmaps et le format attendu (vérifié manuellement sur 3 de mes skins).
 4. L'« Aperçu compressé » correspond pixel pour pixel au DDS écrit (même décodeur).
-5. Réouvrir le PSD restaure toutes les sorties ; `psd2dds export livery.psd` produit des
+5. Réouvrir le PSD restaure toutes les sorties ; `ddsnap export livery.psd` produit des
    fichiers identiques à « Tout exporter » de l'app.
 6. Sans psd-tools installé, l'app et `doctor` disent exactement quoi faire ; aucune erreur
    brute Python n'apparaît dans l'interface.
 7. Toute erreur offre « Copier le rapport » avec assez d'infos pour reproduire.
 8. `v1.0.0` publiée en release avec archive installable par `install.sh`.
 
+## Décisions (2026-10-19)
+
+- Nom : **Ddsnap** (binaires `ddsnap` et `ddsnap-gui`).
+- Recette à côté du PSD : `<nom>.ddsnap.json`.
+- Dépôt GitHub **privé**.
+- Design : GNOME HIG ; passe `/ui-ux-pro-max:design` sur les maquettes à la tâche UI.
+
 ## Questions ouvertes
 
-1. **Nom de l'app** — `psd2dds` en attendant ; le dossier s'appelle `ddsconverter-addons`.
-2. **Recette à côté du PSD** (`<nom>.psd2dds.json`) ou dans `~/.local/share` ? Je recommande à
-   côté : elle voyage avec la skin et sert la CLI.
-3. **BC7** : ton AC a-t-il Custom Shaders Patch ? Si oui, BC7 pourrait devenir le défaut
+1. **BC7** : ton AC a-t-il Custom Shaders Patch ? Si oui, BC7 pourrait devenir le défaut
    « haute qualité ».
-4. **Effets de calque** (ombres, contours) : psd-tools les rend partiellement. Tes PSD en
-   utilisent-ils beaucoup ? Sinon, un avertissement suffit ; sinon il faudra le valider dès
-   la première tâche (c'est le principal risque technique).
-5. **Dépôt distant** : GitHub (`gh` disponible ?), public ou privé ?
-6. **Design** : l'app suit les GNOME HIG (comme Transcode). On passe `/ui-ux-pro-max:design`
-   sur les maquettes au moment de la tâche UI, d'accord ?
+2. **Effets de calque** (ombres, contours) : psd-tools les rend partiellement. Validé par le
+   spike de la tâche 1 sur tes vrais PSD.
