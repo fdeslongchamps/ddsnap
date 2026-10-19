@@ -118,8 +118,8 @@ Critères :
   avec la section du CHANGELOG comme notes.
 
 Critères :
-- [ ] Le script refuse de publier si l'arbre git est sale ou si un test échoue.
-- [ ] Release `v0.1.0` visible sur GitHub avec l'archive ; l'archive extraite fait tourner `ddsnap layers`.
+- [x] Le script refuse de publier si l'arbre git est sale ou si un test échoue.
+- [x] Release `v0.1.0` visible sur GitHub avec l'archive ; l'archive extraite fait tourner `ddsnap layers`.
 
 Fichiers : `CHANGELOG.md`, `scripts/release.sh`, `README.md`
 
