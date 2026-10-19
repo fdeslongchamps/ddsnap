@@ -244,6 +244,14 @@ mod tests {
     }
 
     #[test]
+    fn helper_dying_mid_request_is_a_crash() {
+        // `false` starts fine and exits at once, like a Python that dies on import.
+        let mut h = Helper::spawn_with(Path::new("false")).unwrap();
+        let err = h.open(Path::new("/x.psd")).unwrap_err();
+        assert!(matches!(err, HelperError::HelperCrashed(_)), "{err:?}");
+    }
+
+    #[test]
     fn missing_python_says_what_to_do() {
         let Err(err) = Helper::spawn_with(Path::new("/nonexistent/venv/bin/python")) else {
             panic!("spawn should fail");

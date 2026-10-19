@@ -148,7 +148,16 @@ impl Recipe {
             }
             Err(e) => return Err(RecipeError::Io(path, e)),
         };
-        let recipe: Recipe = serde_json::from_str(&json).map_err(|e| RecipeError::Json(path, e))?;
+        let value: serde_json::Value =
+            serde_json::from_str(&json).map_err(|e| RecipeError::Json(path.clone(), e))?;
+        // Version first: a newer schema must say so, not fail on a renamed field.
+        match value["version"].as_u64() {
+            Some(v) if v != u64::from(VERSION) => {
+                return Err(RecipeError::Version(u32::try_from(v).unwrap_or(u32::MAX)));
+            }
+            _ => {}
+        }
+        let recipe = Recipe::deserialize(value).map_err(|e| RecipeError::Json(path, e))?;
         recipe.validate(&psd.file_name().unwrap_or_default().to_string_lossy())?;
         Ok(recipe)
     }
@@ -384,6 +393,21 @@ mod tests {
             err.to_string(),
             "version de recette inconnue : 2 (ddsnap lit la version 1)"
         );
+    }
+
+    #[test]
+    fn future_version_reports_version_not_schema() {
+        let dir = std::env::temp_dir().join(format!("ddsnap-unit-v2-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let psd = dir.join("livery.psd");
+        fs::write(
+            recipe_path(&psd),
+            r#"{"version": 2, "outputs": [{"file": "a.dds", "layers": []}]}"#,
+        )
+        .unwrap();
+        let err = Recipe::load(&psd, &original()).unwrap_err();
+        let _ = fs::remove_dir_all(&dir);
+        assert!(matches!(err, RecipeError::Version(2)), "{err}");
     }
 
     #[test]
