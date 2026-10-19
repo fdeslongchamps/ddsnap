@@ -225,6 +225,11 @@ impl Helper {
         self.read_image(&reply).map(Some)
     }
 
+    /// False once the helper process has exited (crash, OOM kill).
+    pub fn is_alive(&mut self) -> bool {
+        matches!(self.child.try_wait(), Ok(None))
+    }
+
     /// One layer alone (effects, mask, opacity applied) for the GPU preview (ADR-005).
     pub fn layer(&mut self, index: usize, scale: f64) -> Result<LayerImage> {
         let reply = self.request(json!({"cmd": "layer", "index": index, "scale": scale}))?;

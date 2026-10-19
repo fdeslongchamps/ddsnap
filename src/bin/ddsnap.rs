@@ -114,9 +114,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 settings.format = format.unwrap_or(settings.format);
                 settings.size = size.unwrap_or(settings.size);
                 settings.no_mipmaps |= no_mipmaps;
-                let mut wanted = resolution.visible.clone();
-                wanted.sort_unstable();
-                let as_saved = wanted == tree.psd_visible();
+                let as_saved = tree.is_psd_visibility(&resolution.visible);
                 let report = export::export(
                     &mut helper,
                     &resolution.visible,

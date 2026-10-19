@@ -2,7 +2,21 @@
 
 PSD → DDS pour les skins Assetto Corsa. Spec : [SPEC.md](SPEC.md) · décisions : [docs/decisions/](docs/decisions/).
 
-État : CLI (`ddsnap layers`, `ddsnap export`) ; la GUI n'existe pas encore.
+État : CLI (`ddsnap layers`, `ddsnap export`) et application GNOME (`ddsnap-gui`, à tester).
+
+## Application
+
+```bash
+sudo apt install build-essential python3-venv libgtk-4-dev libadwaita-1-dev
+bash scripts/setup-venv.sh                     # une fois
+cargo run --release --bin ddsnap-gui [livery.psd]
+```
+
+Glissez un PSD dans la fenêtre (ou Ctrl+O). À gauche : les sorties (une par DDS), leurs
+réglages et le dossier de sortie (par défaut celui du PSD, donc celui de la skin), puis les
+calques à dessiner. À droite : l'aperçu (calques extraits une fois, puis fusionnés par la
+carte graphique ; Menu › Sans aperçu pour s'en passer). Ctrl+E exporte la sortie choisie,
+Ctrl+Maj+E toutes. La barre du bas montre chaque étape ; le bouton terminal ouvre le journal.
 
 ## Tester sur un vrai PSD
 

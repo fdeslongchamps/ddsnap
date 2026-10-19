@@ -4,6 +4,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) · versions : 
 
 ## [Unreleased]
 
+### Ajouté
+- Application GNOME `ddsnap-gui` (GTK 4 + libadwaita) : glisser-déposer / Ctrl+O, arbre des
+  calques à cocher, sorties (ajouter, dupliquer, renommer, supprimer), format, taille,
+  mipmaps, dossier de sortie, recette enregistrée à chaque changement.
+- Aperçu sur la carte graphique : chaque calque extrait une fois, fusion GSK (modes de fusion,
+  opacité de groupe, masques d'écrêtage), vues RVB+A / RVB / Alpha, « Aperçu compressé »,
+  option « Sans aperçu ».
+- Export / Tout exporter avec confirmation « Remplacer ? », toast « Afficher dans le dossier »,
+  barre de progression et journal en direct.
+
 ## [0.1.0] - 2026-10-19
 
 Première version : moteur et CLI, sans interface graphique.

@@ -87,6 +87,14 @@ impl LayerTree {
             .map(|l| l.index)
             .collect()
     }
+
+    /// True when `visible` is exactly the PSD's own visibility, so Photoshop's saved image
+    /// can be exported as is (ADR-005).
+    pub fn is_psd_visibility(&self, visible: &[usize]) -> bool {
+        let mut wanted = visible.to_vec();
+        wanted.sort_unstable();
+        wanted == self.psd_visible()
+    }
 }
 
 #[cfg(test)]
