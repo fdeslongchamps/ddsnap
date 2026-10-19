@@ -1,6 +1,6 @@
 # Spec : Ddsnap — PSD → DDS pour skins Assetto Corsa, GUI GNOME
 
-Statut : **approuvée** · 2026-10-19
+Statut : **approuvée** · 2026-10-19 · révision « sync ADR-001…004 » **en attente d'approbation**
 Projet frère : [`../Gui_FFMEG`](../Gui_FFMEG/SPEC.md) (même stack, mêmes conventions).
 
 ## Objectif
@@ -45,13 +45,33 @@ Les sorties d'un PSD sont mémorisées dans un fichier **à côté du PSD** : `<
 leur **identifiant PSD** (`layer_id`, stable même si on renomme ou déplace le calque), puis
 par leur chemin (`Groupe/Sous-groupe/Calque`) si l'identifiant a disparu (calque recréé ou
 copié depuis un autre PSD). **Jamais par position** : ajouter un calque décale toutes les
-positions. Un calque retrouvé seulement par chemin, ou introuvable, est signalé
-(« 2 calques de la recette introuvables ») au lieu d'être ignoré en silence.
+positions. Rien n'est ignoré en silence ; sont signalés (avertissement CLI, bandeau GUI) :
 
-Le nom de fichier d'une sortie est validé **dans `core`**, à la lecture de la recette
-comme à la saisie dans l'app : un simple nom (sans `/` ni `..`), extension `.dds`,
-différent des autres sorties. Une recette éditée à la main ne peut donc jamais écrire
-ailleurs que dans le dossier du PSD ni écraser le PSD.
+- un calque retrouvé **par chemin seulement** alors que la recette avait un `layer_id` (recréé) ;
+- un calque **introuvable**, ou dont le chemin désigne désormais **plusieurs** calques
+  (deux calques de même nom, sans id) ;
+- un calque coché **sans son groupe** : un calque n'est dessiné que si lui et **tous ses
+  groupes parents** sont cochés (« calque « Numéro/42 » non dessiné : son groupe « Numéro »
+  n'est pas coché »).
+
+Un PSD sans aucun `layer_id` (fichiers écrits par certains outils) est résolu par chemin sans
+avertissement. Dans un chemin, `/` et `\` à l'intérieur d'un nom s'écrivent `\/` et `\\`.
+
+La recette est lue puis **entièrement validée avant le premier rendu** (une recette invalide
+n'écrit rien) :
+
+- `version` vérifiée en premier : une version inconnue donne « version de recette inconnue »,
+  jamais une erreur de champ ;
+- nom de fichier de chaque sortie validé **dans `core`** (`validate_output_name`), à la lecture
+  comme à la saisie dans l'app : un simple nom sans `/` ni `\`, extension `.dds` (casse
+  indifférente), différent du PSD et des autres sorties. Sans séparateur, `..` ne peut viser
+  aucun autre dossier : `livery..v2.dds` est accepté. Une recette éditée à la main ne peut
+  donc jamais écrire ailleurs que dans le dossier du PSD ni écraser le PSD ;
+- `format`, `size`, `mipmaps` sont facultatifs (défauts : `auto`, `source`, `true`).
+
+Sans recette, la recette par défaut (une sortie `<nom>.dds`, Auto, taille source, mipmaps,
+calques visibles du PSD) est construite en mémoire ; la CLI ne l'écrit pas, la GUI l'écrit à
+la première modification.
 
 ```json
 {
@@ -82,9 +102,16 @@ ailleurs que dans le dossier du PSD ni écraser le PSD.
 | Haute qualité | BC7 | nécessite Custom Shaders Patch — avertissement affiché |
 | Sans perte | RGBA8 non compressé | debug, petites textures |
 
-- Mipmaps générés par défaut (filtre Lanczos/Kaiser, alpha préservé), désactivables.
-- Taille : « source » ou réduction 4096 / 2048 / 1024. Si une dimension n'est pas une
-  puissance de 2 ou pas multiple de 4 → avertissement (BCn exige des blocs 4×4).
+- En-têtes DDS (ADR-003) : **DX9 classiques** pour BC1 (`DXT1`), BC3 (`DXT5`) et RGBA8
+  (`A8R8G8B8`, octets BGRA), lisibles par tous les outils ; BC7 n'a pas de code DX9 → en-tête
+  **DX10** (`BC7_UNORM`). Qualité d'encodage `Normal`.
+- Mipmaps générés par défaut jusqu'à 1×1, désactivables. Filtre **boîte 2×2** (celui
+  d'`image_dds`), pas Lanczos/Kaiser : écart assumé (ADR-003), à revoir si des moirés
+  apparaissent au loin en jeu.
+- Taille : « source » ou réduction 4096 / 2048 / 1024 du **plus grand côté** (Lanczos3,
+  ratio conservé, jamais d'agrandissement). Si une dimension n'est pas une puissance de 2, ou
+  pas multiple de 4 pour BC1/BC3/BC7 → avertissement seulement (l'encodeur complète les blocs
+  4×4), jamais de refus.
 - Les PSD 16 bits et CMYK sont convertis en RGBA 8 bits ; la conversion est indiquée dans
   l'interface.
 
@@ -92,10 +119,16 @@ ailleurs que dans le dossier du PSD ni écraser le PSD.
 
 ```bash
 ddsnap export livery.psd                  # toutes les sorties de livery.ddsnap.json
-ddsnap export livery.psd --output livery  # une seule sortie
+                                          #   (sans recette : <nom>.dds, calques visibles du PSD)
+ddsnap export livery.psd --output livery  # une seule sortie (« livery » ou « livery.dds »)
+ddsnap export livery.psd --format bc3 --size 2048 --no-mipmaps
+                                          # remplace les réglages de la recette pour cet appel
 ddsnap layers livery.psd                  # arbre des calques (texte ou --json)
 ddsnap doctor                             # vérifie python3, psd-tools, versions, chemins
 ```
+
+Avertissements sur stderr (`avertissement : livery.dds : …`), une ligne par sortie écrite sur
+stdout (`livery.dds — 4096×4096 · BC3 · 21,3 Mo`), code de sortie non nul en cas d'erreur.
 
 La CLI est la frontière d'intégration : un script, un `Makefile`, ou plus tard PhotoCraft
 l'appellent sans dépendre de l'interface graphique.
@@ -119,11 +152,11 @@ l'appellent sans dépendre de l'interface graphique.
 | Langage | Rust, édition 2024 | stable ≥ 1.92 |
 | UI | gtk4-rs + libadwaita-rs | gtk4 0.11.5 (`v4_14`), libadwaita 0.9.2 (`v1_5`) |
 | Interface déclarative | Blueprint → GtkBuilder, compilé dans `build.rs` | blueprint-compiler ≥ 0.10 |
-| Async | boucle GLib + `gio::Subprocess`, pas de tokio | — |
-| Lecture PSD + composition | **psd-tools** (Python) dans un processus assistant long-vivant | python ≥ 3.12, psd-tools ≥ 1.10 |
-| Encodage DDS | crate `image_dds` (BC1/BC3/BC7, mipmaps) | à figer à l'ajout |
+| Async | `core` **synchrone** (`std::process`, bloquant) ; la GUI l'appelle depuis un thread de travail et revient sur la boucle GLib (ADR-002) ; pas de tokio | — |
+| Lecture PSD + composition | **psd-tools** (Python) dans un processus assistant long-vivant | python ≥ 3.12 (testé 3.14), psd-tools **1.25.0** (figé dans `scripts/setup-venv.sh`) |
+| Encodage DDS | crate `image_dds` (BC1/BC3/BC7 via intel_tex_2, décodage bcdec) ; `build.rs` lie libstdc++ pour intel_tex_2 | 0.7.2 |
 | JSON | `serde` + `serde_json` | — |
-| CLI | `clap` (derive) | à figer à l'ajout |
+| CLI | `clap` (derive) | 4.6.7 |
 
 **Assistant Python** (`helper/psd_helper.py`, embarqué dans le binaire via `include_str!` et
 lancé par `python -I -c <script>` : aucun fichier écrit, donc pas de course entre la GUI et
@@ -134,18 +167,33 @@ PNG, pour éviter un encodage inutile.
 - **stdout réservé au protocole** : au démarrage, l'assistant garde le vrai stdout pour lui et
   redirige `sys.stdout` vers stderr. Un `print` ou un avertissement de psd-tools ou d'une
   dépendance ne peut pas corrompre le flux d'octets.
+- **stderr lu en continu** par un thread côté Rust (une sortie bavarde ne bloque jamais le
+  tube) ; les 16 derniers Ko servent aux messages d'erreur et au rapport.
+- **Pas de timeout** : un gros PSD est légitimement lent ; un assistant mort est détecté par la
+  fin de son stdout. Erreurs typées côté Rust : `PythonMissing` (python du venv absent),
+  `PsdToolsMissing` (`No module named 'psd_tools'`), `HelperCrashed(stderr)`, `Psd(message)`.
 - **Un rendu à la fois, le dernier gagne** : côté Rust, au plus un `render` en cours et une
   seule demande en attente ; une nouvelle demande remplace celle en attente. Cliquer vite
   ne crée pas de file de rendus périmés.
 
 ```
 → {"cmd":"open","path":"/…/livery.psd"}
-← {"ok":true,"width":4096,"height":4096,"layers":[…]}
-→ {"cmd":"render","visible":[0,3,7],"scale":0.25}   # index de la réponse open (ADR-001)
+← {"ok":true,"width":4096,"height":4096,"depth":8,"color_mode":"RGB","layers":[
+     {"index":0,"id":12,"name":"Base","path":["Base"],"parent":null,
+      "kind":"pixel","visible":true,"has_effects":false}, …]}
+→ {"cmd":"render","visible":[0,3,7],"scale":0.25}
 ← {"ok":true,"width":1024,"height":1024,"bytes":4194304}  + 4194304 octets RGBA
+→ {"cmd":"quit"}
+← {"ok":false,"kind":"protocol|not_found|invalid_psd|internal","error":"…"}   # en cas d'erreur
 ```
 
-psd-tools est installé dans un venv dédié `~/.local/share/ddsnap/venv` par
+`render.visible` liste des **index** (ordre de `descendants()`, donnés par `open`), pas des
+`layer_id` : les PSD écrits par certains outils n'en ont aucun (ADR-001). La recette garde
+`layer_id` puis chemin ; `core::recipe` traduit vers les index. Une erreur ne termine jamais
+l'assistant.
+
+psd-tools est installé dans un venv dédié (`$DDSNAP_VENV`, sinon
+`$XDG_DATA_HOME/ddsnap/venv`, sinon `~/.local/share/ddsnap/venv`) par
 `scripts/setup-venv.sh`, **seul endroit** où sa version est figée ; `install.sh` l'appelle
 (Ubuntu interdit `pip install` système, PEP 668).
 
@@ -179,7 +227,7 @@ gh release create vX.Y.Z dist/ddsnap-vX.Y.Z-x86_64-linux.tar.gz --notes-file <no
 
 ```
 Cargo.toml
-build.rs                    → Blueprint (.blp → .ui) + GResource
+build.rs                    → lien libstdc++ (intel_tex_2) ; plus tard Blueprint (.blp → .ui) + GResource
 install.sh                  → appelle scripts/setup-venv.sh, binaires dans ~/.local/bin, .desktop
 scripts/
   setup-venv.sh             → venv psd-tools (version figée ici seulement)
@@ -189,6 +237,7 @@ data/
 helper/
   psd_helper.py             → assistant psd-tools (open, render), embarqué via include_str!, lancé par python -I -c
   test_psd_helper.py        → tests pytest de l'assistant
+  bench_psd_helper.py       → banc : temps open/render, écart avec le composite Photoshop
 src/
   lib.rs                    → expose core/
   core/                     → logique pure, AUCUNE dépendance GTK
@@ -205,8 +254,10 @@ src/
     window.rs, layer_tree.rs, preview.rs, outputs_panel.rs
 tests/
   integration.rs            → #[ignore], PSD générés par psd-tools au moment du test
+  fixtures/                 → réponses JSON enregistrées de l'assistant, make_psd.py
 docs/
-  decisions/                → ADR (psd-tools en sous-processus, image_dds, recette sidecar)
+  decisions/                → ADR-001 assistant psd-tools, ADR-002 core synchrone,
+                              ADR-003 image_dds, ADR-004 recette sidecar
 CHANGELOG.md
 SPEC.md
 ```
@@ -308,5 +359,11 @@ pub fn auto_format(rgba: &[u8]) -> DdsFormat {
 
 1. **BC7** : ton AC a-t-il Custom Shaders Patch ? Si oui, BC7 pourrait devenir le défaut
    « haute qualité ».
-2. **Effets de calque** (ombres, contours) : psd-tools les rend partiellement. Validé par le
-   spike de la tâche 1 sur tes vrais PSD.
+2. **Effets de calque** (ombres, contours) : psd-tools les rend partiellement. À valider
+   sur tes vrais PSD (chemins à fournir, ADR-001).
+3. **Aperçu en direct — critères 1 et 2 menacés.** Mesure T1 (PSD synthétique 4096²,
+   55 calques) : `open` 0,43 s mais `render` **57 s**, à 100 % comme à 25 % (psd-tools compose
+   en pleine taille, ≈ 1 s par calque). L'export (CLI) reste acceptable ; l'aperçu < 2 s ne
+   l'est pas tel quel. À trancher avant T7, idéalement sur tes vrais PSD : compositeur
+   d'aperçu maison à l'échelle de l'écran (psd-tools reste la référence à l'export), cache par
+   groupe, ou rendu à la demande sans direct.
