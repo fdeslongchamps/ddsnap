@@ -17,6 +17,20 @@ Sources : [docs/plugins.md](https://github.com/storytold/photocraft/blob/main/do
 noms des outils MCP, présence de l'image aplatie (« Maximiser la compatibilité ») dans les PSD
 écrits par PhotoCraft — sans elle, l'export « tel quel » de Ddsnap retombe sur psd-tools (lent).
 
+## Ce que dit le code de PhotoCraft (clone du 2026-10-19, commit 3a896a5)
+
+- PhotoCraft **ouvre** déjà les DDS (lecture seule, #1327 : niveau 0, BC1–BC3, non compressé).
+- L'écriture est refusée exprès : « écrire un DDS correctement demande de choisir une
+  compression par blocs et de générer les mipmaps, ce qui relève d'un **export de texture**,
+  pas de Enregistrer sous » (`crates/codecs/src/format.rs`, `ASYMMETRIC_EXCEPTIONS`).
+  Un export de texture est donc le bon endroit, et les mainteneurs l'ont déjà envisagé.
+- Contraintes du projet (`AGENTS.md`) : Rust seulement, pas d'`unsafe`, jamais de panique,
+  les couches basses doivent compiler en WebAssembly (`cargo xtask wasm`). Le moteur de Ddsnap
+  (`image_dds` → intel_tex_2, du C++) ne passe pas en wasm : il faudrait un encodeur BC
+  écrit en Rust (BC1/BC3 au minimum ; BC7 à vérifier).
+- Tout passe par des commandes typées (aussi pilotables par CLI et MCP) avec un test d'échec
+  propre par commande, et des documents de parité à régénérer.
+
 ## Pistes
 
 1. **Surveiller le PSD** : `ddsnap watch livery.psd` (et un interrupteur dans l'app) réexporte
@@ -30,5 +44,8 @@ noms des outils MCP, présence de l'image aplatie (« Maximiser la compatibilit�
    Rust, `image_dds` s'y intègre). Le vrai « dans l'app », mais c'est leur dépôt et leur feuille
    de route.
 
-Recommandation : 1 maintenant (utile tout de suite), 4 proposé en amont ; 3 seulement si
-psd-tools reste trop lent ou inexact sur les PSD de PhotoCraft.
+Besoin réel de l'utilisateur : **enregistrer en .dds depuis PhotoCraft**. Seule la piste 4 y
+répond vraiment : une commande « Exporter en texture (DDS)… » dans PhotoCraft (format BC,
+mipmaps, comme le plug-in NVIDIA de Photoshop). Une version locale (fork) sans PR est possible,
+mais PhotoCraft fusionne des dizaines de PR par jour : la garder à jour coûterait cher.
+La piste 1 reste un pont utile en attendant.
