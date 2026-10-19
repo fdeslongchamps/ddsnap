@@ -31,7 +31,9 @@ bash "$ROOT/scripts/setup-venv.sh"
 cargo build --release --manifest-path "$ROOT/Cargo.toml"
 install -Dm755 "$ROOT/target/release/ddsnap" "$BIN/ddsnap"
 install -Dm755 "$ROOT/target/release/ddsnap-gui" "$BIN/ddsnap-gui"
-install -Dm644 "$ROOT/data/$ID.desktop" "$DESKTOP"
+# Absolute Exec: ~/.local/bin is only in the session PATH if it existed at login.
+mkdir -p "$(dirname "$DESKTOP")"
+sed "s|^Exec=ddsnap-gui|Exec=$BIN/ddsnap-gui|" "$ROOT/data/$ID.desktop" >"$DESKTOP"
 install -Dm644 "$ROOT/data/icons/$ID.svg" "$ICON"
 update-desktop-database "$DATA/applications" 2>/dev/null || true
 gtk4-update-icon-cache -q "$DATA/icons/hicolor" 2>/dev/null || true

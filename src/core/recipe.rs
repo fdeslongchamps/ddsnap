@@ -262,8 +262,16 @@ impl Output {
         res
     }
 
-    /// Replaces the layers of this output by `indices` of `tree` (GUI checkboxes).
+    /// Replaces the layers of this output by `indices` of `tree` (GUI checkboxes). Layers of
+    /// the recipe not found in `tree` are kept: they have no checkbox to say otherwise.
     pub fn set_visible(&mut self, tree: &LayerTree, indices: &[usize]) {
+        let missing = self.resolve(tree).missing;
+        let kept: Vec<LayerRef> = self
+            .visible
+            .iter()
+            .filter(|r| missing.contains(&r.path))
+            .cloned()
+            .collect();
         self.visible = tree
             .layers
             .iter()
@@ -272,6 +280,7 @@ impl Output {
                 id: l.id,
                 path: l.path_string(),
             })
+            .chain(kept)
             .collect();
     }
 
