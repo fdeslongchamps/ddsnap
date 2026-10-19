@@ -3,9 +3,10 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use ddsnap::core::dds::{Format, Size};
-use ddsnap::core::export::{self, Settings};
+use ddsnap::core::export;
 use ddsnap::core::helper::Helper;
 use ddsnap::core::layers::LayerTree;
+use ddsnap::core::recipe::Recipe;
 
 #[derive(Parser)]
 #[command(version, about = "PSD → DDS pour skins Assetto Corsa")]
@@ -23,20 +24,21 @@ enum Cmd {
         #[arg(long)]
         json: bool,
     },
-    /// Exporte le PSD en DDS (calques visibles dans le PSD)
+    /// Exporte les sorties de <psd>.ddsnap.json (sans recette : les calques visibles du PSD)
     Export {
         psd: PathBuf,
-        /// auto, bc1, bc3, bc7, rgba8
-        #[arg(long, default_value = "auto")]
-        format: Format,
-        /// source, 4096, 2048, 1024
-        #[arg(long, default_value = "source")]
-        size: Size,
+        /// N'exporte que cette sortie (« livery » ou « livery.dds »)
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Remplace le format de la recette : auto, bc1, bc3, bc7, rgba8
+        #[arg(long)]
+        format: Option<Format>,
+        /// Remplace la taille de la recette : source, 4096, 2048, 1024
+        #[arg(long)]
+        size: Option<Size>,
+        /// Désactive les mipmaps
         #[arg(long)]
         no_mipmaps: bool,
-        /// Fichier de sortie (défaut : <psd>.dds à côté du PSD)
-        #[arg(short, long)]
-        output: Option<PathBuf>,
     },
 }
 
@@ -62,27 +64,53 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Cmd::Export {
             psd,
+            output,
             format,
             size,
             no_mipmaps,
-            output,
         } => {
-            let dest = output.unwrap_or_else(|| psd.with_extension("dds"));
-            if std::path::absolute(&dest)? == std::path::absolute(&psd)? {
-                return Err("la sortie ne peut pas être le PSD lui-même".into());
-            }
             let mut helper = Helper::spawn()?;
             let tree = helper.open(&psd)?;
-            let settings = Settings {
-                format,
-                size,
-                no_mipmaps,
+            // Validated here: every output name is a plain .dds name, so `dir.join` stays in dir.
+            let recipe = Recipe::load(&psd, &tree)?;
+            let outputs: Vec<_> = match &output {
+                None => recipe.outputs.iter().collect(),
+                Some(name) => {
+                    let found: Vec<_> = recipe
+                        .outputs
+                        .iter()
+                        .filter(|o| o.file == *name || o.file == format!("{name}.dds"))
+                        .collect();
+                    if found.is_empty() {
+                        let names: Vec<_> =
+                            recipe.outputs.iter().map(|o| o.file.as_str()).collect();
+                        return Err(format!(
+                            "sortie « {name} » absente de la recette ({})",
+                            names.join(", ")
+                        )
+                        .into());
+                    }
+                    found
+                }
             };
-            let report = export::export(&mut helper, &tree.psd_visible(), settings, &dest)?;
-            for warning in &report.warnings {
-                eprintln!("avertissement : {warning}");
+            let dir = psd.parent().unwrap_or(std::path::Path::new("."));
+            for out in outputs {
+                let resolution = out.resolve(&tree);
+                let mut settings = out.settings();
+                settings.format = format.unwrap_or(settings.format);
+                settings.size = size.unwrap_or(settings.size);
+                settings.no_mipmaps |= no_mipmaps;
+                let report = export::export(
+                    &mut helper,
+                    &resolution.visible,
+                    settings,
+                    &dir.join(&out.file),
+                )?;
+                for warning in resolution.warnings().iter().chain(&report.warnings) {
+                    eprintln!("avertissement : {} : {warning}", out.file);
+                }
+                println!("{report}");
             }
-            println!("{report}");
         }
     }
     Ok(())

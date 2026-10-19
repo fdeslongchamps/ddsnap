@@ -83,13 +83,13 @@ Fichiers : `Cargo.toml`, `src/core/{dds,export}.rs`, `src/bin/ddsnap.rs`,
 - CLI : `ddsnap export <psd>` exporte toutes les sorties ; `--output <nom>` une seule.
 
 Critères :
-- [ ] Tests : aller-retour JSON ; calque renommé ou déplacé (retrouvé par `layer_id`, sans
+- [x] Tests : aller-retour JSON ; calque renommé ou déplacé (retrouvé par `layer_id`, sans
   avertissement) ; calque inséré au-dessus (aucun autre calque ne change) ; calque recréé
   (retrouvé par chemin + avertissement) ; calque supprimé (signalé) ; deux calques de même
   nom ; version inconnue → erreur claire.
-- [ ] Tests : `livery.psd`, `../x.dds`, `a/b.dds`, `x.png`, nom en double → recette refusée,
+- [x] Tests : `livery.psd`, `../x.dds`, `a/b.dds`, `x.png`, nom en double → recette refusée,
   aucun fichier écrit.
-- [ ] `#[ignore]` : recette à 2 sorties → 2 DDS différents attendus.
+- [x] `#[ignore]` : recette à 2 sorties → 2 DDS différents attendus.
 
 Fichiers : `src/core/recipe.rs`, `src/core/export.rs`, `src/bin/ddsnap.rs`,
 `docs/decisions/ADR-004-recipe-sidecar.md`

@@ -4,3 +4,4 @@ pub mod dds;
 pub mod export;
 pub mod helper;
 pub mod layers;
+pub mod recipe;
