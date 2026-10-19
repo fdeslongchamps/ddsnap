@@ -106,7 +106,10 @@ pub fn validate_output_name<'a>(
 
 impl Recipe {
     pub fn output_dir(&self, psd: &Path) -> PathBuf {
-        let psd_dir = psd.parent().unwrap_or(Path::new("."));
+        let psd_dir = psd
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
         match &self.output_dir {
             Some(dir) => psd_dir.join(dir), // `join` keeps an absolute `dir` as is
             None => psd_dir.to_path_buf(),
@@ -465,6 +468,8 @@ mod tests {
         let psd = Path::new("/skins/src/livery.psd");
         let mut recipe = Recipe::default_for(psd, &original());
         assert_eq!(recipe.output_dir(psd), Path::new("/skins/src"));
+        // `ddsnap export livery.psd` run inside the skin folder: parent() is "", not ".".
+        assert_eq!(recipe.output_dir(Path::new("livery.psd")), Path::new("."));
         recipe.output_dir = Some("../export".into());
         assert_eq!(recipe.output_dir(psd), Path::new("/skins/src/../export"));
         recipe.output_dir = Some("/ac/skins/42".into());
