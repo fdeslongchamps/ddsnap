@@ -22,11 +22,12 @@ Valide le risque n°1 avant tout le reste. Écrit ADR-001.
   écart avec l'image composite enregistrée dans le PSD (effets de calque).
 
 Critères :
-- [ ] `pytest helper/` vert ; `render` respecte la liste de visibilité (pixel attendu par calque).
-- [ ] Erreur sur fichier non-PSD → réponse `ok:false`, le processus reste vivant.
-- [ ] Test : un `print("parasite")` pendant un `render` → la réponse et ses octets restent intacts.
-- [ ] Le script tourne via `python -I -c "$(cat helper/psd_helper.py)"` (pas de dépendance à son emplacement).
-- [ ] Mesures notées dans `docs/decisions/ADR-001-psd-tools-helper.md` ; décision go / ajustement.
+- [x] `pytest helper/` vert ; `render` respecte la liste de visibilité (pixel attendu par calque).
+- [x] Erreur sur fichier non-PSD → réponse `ok:false`, le processus reste vivant.
+- [x] Test : un `print("parasite")` pendant un `render` → la réponse et ses octets restent intacts.
+- [x] Le script tourne via `python -I -c "$(cat helper/psd_helper.py)"` (pas de dépendance à son emplacement).
+- [~] Mesures notées dans `docs/decisions/ADR-001-psd-tools-helper.md` ; décision go / ajustement.
+  Synthétique fait (57 s/rendu 4096² → go export, aperçu à revoir avant T7) ; **vrais PSD en attente**.
 
 Fichiers : `scripts/setup-venv.sh`, `helper/psd_helper.py`, `helper/test_psd_helper.py`,
 `docs/decisions/ADR-001-psd-tools-helper.md`
