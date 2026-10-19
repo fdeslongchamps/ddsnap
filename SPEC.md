@@ -26,8 +26,8 @@ moteur depuis un terminal et, plus tard, depuis PhotoCraft.
    `nom de fichier + ensemble de calques visibles + format DDS`. Par défaut une sortie
    « livery » avec la visibilité d'origine du PSD. Je peux en ajouter (ex. `livery.dds`,
    `ext_config_mask.dds`), les dupliquer, les renommer, les supprimer.
-4. Je coche/décoche des calques → l'aperçu se recalcule (anti-rebond 300 ms, indicateur de
-   calcul, l'interface ne gèle jamais).
+4. Je coche/décoche des calques → l'aperçu se recalcule (le dernier clic gagne : les états
+   intermédiaires ne sont pas rendus ; indicateur de calcul ; l'interface ne gèle jamais).
 5. Je choisis le format (préréglages AC ci-dessous) et la taille. Le bouton **« Aperçu
    compressé »** montre l'image décodée depuis le DDS réellement produit, pour voir les
    artefacts BC1/BC3 avant d'enregistrer. Bascule rapide Avant/Après.
@@ -42,9 +42,16 @@ moteur depuis un terminal et, plus tard, depuis PhotoCraft.
 
 Les sorties d'un PSD sont mémorisées dans un fichier **à côté du PSD** : `<nom>.ddsnap.json`
 (lisible, versionnable avec la skin, réutilisé par la CLI). Les calques y sont identifiés par
-leur chemin (`Groupe/Sous-groupe/Calque`) **et** leur index ; si un calque a été renommé ou
-supprimé depuis, l'app le signale (« 2 calques de la recette introuvables ») au lieu de
-l'ignorer en silence.
+leur **identifiant PSD** (`layer_id`, stable même si on renomme ou déplace le calque), puis
+par leur chemin (`Groupe/Sous-groupe/Calque`) si l'identifiant a disparu (calque recréé ou
+copié depuis un autre PSD). **Jamais par position** : ajouter un calque décale toutes les
+positions. Un calque retrouvé seulement par chemin, ou introuvable, est signalé
+(« 2 calques de la recette introuvables ») au lieu d'être ignoré en silence.
+
+Le nom de fichier d'une sortie est validé **dans `core`**, à la lecture de la recette
+comme à la saisie dans l'app : un simple nom (sans `/` ni `..`), extension `.dds`,
+différent des autres sorties. Une recette éditée à la main ne peut donc jamais écrire
+ailleurs que dans le dossier du PSD ni écraser le PSD.
 
 ```json
 {
@@ -55,7 +62,11 @@ l'ignorer en silence.
       "format": "bc3",
       "size": "source",
       "mipmaps": true,
-      "visible": ["Base", "Sponsors", "Numéro/42"]
+      "visible": [
+        { "id": 12, "path": "Base" },
+        { "id": 31, "path": "Sponsors" },
+        { "id": 47, "path": "Numéro/42" }
+      ]
     }
   ]
 }
@@ -114,19 +125,28 @@ l'appellent sans dépendre de l'interface graphique.
 | JSON | `serde` + `serde_json` | — |
 | CLI | `clap` (derive) | à figer à l'ajout |
 
-**Assistant Python** (`helper/psd_helper.py`, embarqué dans le binaire et écrit au premier
-lancement) : lancé une fois par PSD ouvert, garde le PSD en mémoire, dialogue en JSON par
+**Assistant Python** (`helper/psd_helper.py`, embarqué dans le binaire via `include_str!` et
+lancé par `python -I -c <script>` : aucun fichier écrit, donc pas de course entre la GUI et
+la CLI) : lancé une fois par PSD ouvert, garde le PSD en mémoire, dialogue en JSON par
 lignes sur stdin/stdout. Les pixels repassent en RGBA brut (en-tête JSON + octets), pas en
 PNG, pour éviter un encodage inutile.
+
+- **stdout réservé au protocole** : au démarrage, l'assistant garde le vrai stdout pour lui et
+  redirige `sys.stdout` vers stderr. Un `print` ou un avertissement de psd-tools ou d'une
+  dépendance ne peut pas corrompre le flux d'octets.
+- **Un rendu à la fois, le dernier gagne** : côté Rust, au plus un `render` en cours et une
+  seule demande en attente ; une nouvelle demande remplace celle en attente. Cliquer vite
+  ne crée pas de file de rendus périmés.
 
 ```
 → {"cmd":"open","path":"/…/livery.psd"}
 ← {"ok":true,"width":4096,"height":4096,"layers":[…]}
-→ {"cmd":"render","visible":[0,3,7],"scale":0.25}
+→ {"cmd":"render","visible":[12,31,47],"scale":0.25}
 ← {"ok":true,"width":1024,"height":1024,"bytes":4194304}  + 4194304 octets RGBA
 ```
 
-psd-tools est installé dans un venv dédié `~/.local/share/ddsnap/venv` par `install.sh`
+psd-tools est installé dans un venv dédié `~/.local/share/ddsnap/venv` par
+`scripts/setup-venv.sh`, **seul endroit** où sa version est figée ; `install.sh` l'appelle
 (Ubuntu interdit `pip install` système, PEP 668).
 
 Distributions cibles : Ubuntu 24.04 LTS et plus récentes. Paquets système requis :
@@ -160,11 +180,14 @@ gh release create vX.Y.Z dist/ddsnap-vX.Y.Z-x86_64-linux.tar.gz --notes-file <no
 ```
 Cargo.toml
 build.rs                    → Blueprint (.blp → .ui) + GResource
-install.sh                  → venv psd-tools, binaires dans ~/.local/bin, .desktop
+install.sh                  → appelle scripts/setup-venv.sh, binaires dans ~/.local/bin, .desktop
+scripts/
+  setup-venv.sh             → venv psd-tools (version figée ici seulement)
+  release.sh                → vérifs, archive, tag, gh release
 data/
   ui/*.blp, icons/, *.desktop.in
 helper/
-  psd_helper.py             → assistant psd-tools (open, tree, render), embarqué via include_str!
+  psd_helper.py             → assistant psd-tools (open, render), embarqué via include_str!, lancé par python -I -c
   test_psd_helper.py        → tests pytest de l'assistant
 src/
   lib.rs                    → expose core/
@@ -211,11 +234,13 @@ pub fn auto_format(rgba: &[u8]) -> DdsFormat {
 ## Stratégie de test
 
 - **Unitaires Rust (`cargo test`)**, sans Python : format Auto, validation des tailles,
-  résolution recette ↔ arbre (calque renommé, supprimé, doublon de nom), migration du JSON
-  de recette, parsing du protocole assistant sur des réponses enregistrées, en-tête DDS
+  résolution recette ↔ arbre (calque renommé, déplacé, recréé, supprimé, doublon de nom,
+  calque inséré au-dessus), validation des noms de sortie (`../x.dds`, `livery.psd`, `a/b.dds`,
+  doublon), file de rendu « dernier gagne », migration du JSON de recette, parsing du protocole assistant sur des réponses enregistrées, en-tête DDS
   produit (dimensions, FourCC, nombre de mipmaps).
 - **Assistant Python (`pytest helper/`)** : PSD générés par psd-tools dans le test (groupes,
-  calques masqués, mode de fusion, 16 bits) ; `render` respecte la liste de visibilité.
+  calques masqués, mode de fusion, 16 bits) ; `render` respecte la liste de visibilité ; un
+  `print` parasite pendant un rendu ne corrompt pas la réponse.
 - **Intégration (`cargo test -- --ignored`)** : PSD → DDS de bout en bout, relecture du DDS
   et comparaison au rendu psd-tools (écart moyen sous un seuil par format).
 - **Régression** : chaque bug signalé sur un vrai PSD ajoute un cas de test avant la

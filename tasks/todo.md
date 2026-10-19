@@ -13,9 +13,10 @@ Chaque tâche = un commit. Avant chaque commit : `cargo fmt --all -- --check`,
 Valide le risque n°1 avant tout le reste. Écrit ADR-001.
 
 - `scripts/setup-venv.sh` : crée `~/.local/share/ddsnap/venv`, installe `psd-tools` (version figée).
-- `helper/psd_helper.py` : boucle JSON-lignes sur stdin/stdout, commandes `open`, `render`
-  (`visible: [index…]`, `scale`), `quit`. Réponse d'erreur `{"ok":false,"error":…,"kind":…}`,
-  jamais de trace Python brute sur stdout.
+- `helper/psd_helper.py` : boucle JSON-lignes sur stdin/stdout, commandes `open` (arbre avec
+  `layer_id`, chemin, type, visibilité), `render` (`visible: [layer_id…]`, `scale`), `quit`.
+  Réponse d'erreur `{"ok":false,"error":…,"kind":…}`. Première chose au démarrage : garder le
+  vrai stdout (binaire) pour le protocole et rediriger `sys.stdout` vers stderr.
 - `helper/test_psd_helper.py` : PSD générés dans le test (groupe, calque masqué, mode de fusion).
 - Mesures sur les vrais PSD de l'utilisateur : temps `open`, `render` plein format et à 25 %,
   écart avec l'image composite enregistrée dans le PSD (effets de calque).
@@ -23,6 +24,8 @@ Valide le risque n°1 avant tout le reste. Écrit ADR-001.
 Critères :
 - [ ] `pytest helper/` vert ; `render` respecte la liste de visibilité (pixel attendu par calque).
 - [ ] Erreur sur fichier non-PSD → réponse `ok:false`, le processus reste vivant.
+- [ ] Test : un `print("parasite")` pendant un `render` → la réponse et ses octets restent intacts.
+- [ ] Le script tourne via `python -I -c "$(cat helper/psd_helper.py)"` (pas de dépendance à son emplacement).
 - [ ] Mesures notées dans `docs/decisions/ADR-001-psd-tools-helper.md` ; décision go / ajustement.
 
 Fichiers : `scripts/setup-venv.sh`, `helper/psd_helper.py`, `helper/test_psd_helper.py`,
@@ -33,10 +36,11 @@ Fichiers : `scripts/setup-venv.sh`, `helper/psd_helper.py`, `helper/test_psd_hel
 Écrit ADR-002.
 
 - `Cargo.toml` (édition 2024, `serde`, `serde_json`, `clap` figés), `src/lib.rs`, `.gitignore`.
-- `core::helper` : lance l'assistant (script embarqué via `include_str!`, écrit dans
-  `~/.local/share/ddsnap/` si absent ou différent), envoie/reçoit, lit les octets RGBA, timeout,
-  erreurs typées (`PythonMissing`, `PsdToolsMissing`, `HelperCrashed`, `Psd(String)`).
-- `core::layers` : `LayerTree` (index, chemin `Groupe/Calque`, type, visibilité d'origine).
+- `core::helper` : lance l'assistant par `<venv>/bin/python -I -c <script embarqué via include_str!>`
+  (aucun fichier écrit), envoie/reçoit, lit les octets RGBA, erreurs typées (`PythonMissing`,
+  `PsdToolsMissing`, `HelperCrashed`, `Psd(String)`). Pas de timeout sur `open` (gros PSD
+  légitimement lents) ; un assistant mort est détecté par la fin du flux.
+- `core::layers` : `LayerTree` (`layer_id`, chemin `Groupe/Calque`, type, visibilité d'origine).
 - `src/bin/ddsnap.rs` : `ddsnap layers <psd> [--json]`.
 
 Critères :
@@ -71,12 +75,19 @@ Fichiers : `Cargo.toml`, `src/core/{dds,export}.rs`, `src/bin/ddsnap.rs`,
 Écrit ADR-004.
 
 - `core::recipe` : lecture/écriture (`version: 1`), recette par défaut = visibilité du PSD,
-  résolution recette ↔ arbre par chemin puis index, rapport des calques introuvables.
+  résolution recette ↔ arbre par `layer_id` puis chemin (jamais par position), rapport des
+  calques retrouvés par chemin seulement ou introuvables.
+- Validation des noms de sortie, à la lecture : simple nom sans `/` ni `..`, extension `.dds`,
+  différent du PSD, unique dans la recette. Même fonction utilisée par la GUI (T8).
 - CLI : `ddsnap export <psd>` exporte toutes les sorties ; `--output <nom>` une seule.
 
 Critères :
-- [ ] Tests : aller-retour JSON, calque renommé (retrouvé par index + avertissement), calque
-  supprimé (signalé), deux calques de même nom, version inconnue → erreur claire.
+- [ ] Tests : aller-retour JSON ; calque renommé ou déplacé (retrouvé par `layer_id`, sans
+  avertissement) ; calque inséré au-dessus (aucun autre calque ne change) ; calque recréé
+  (retrouvé par chemin + avertissement) ; calque supprimé (signalé) ; deux calques de même
+  nom ; version inconnue → erreur claire.
+- [ ] Tests : `livery.psd`, `../x.dds`, `a/b.dds`, `x.png`, nom en double → recette refusée,
+  aucun fichier écrit.
 - [ ] `#[ignore]` : recette à 2 sorties → 2 DDS différents attendus.
 
 Fichiers : `src/core/recipe.rs`, `src/core/export.rs`, `src/bin/ddsnap.rs`,
@@ -125,11 +136,13 @@ Fichiers : `Cargo.toml`, `build.rs`, `data/ui/{window,welcome}.blp`, `data/resou
 
 - `ui/preview.rs` : rendu à l'échelle de la fenêtre, zoom (ajusté / 100 % / molette), déplacement,
   RVB / Alpha / RVB+A sur damier.
-- Cases à cocher dans l'arbre → rendu avec anti-rebond 300 ms ; un rendu périmé est ignoré
-  (numéro de génération) ; indicateur de calcul.
+- Cases à cocher dans l'arbre → `core::render_queue` : au plus un rendu en cours et une seule
+  demande en attente, une nouvelle demande remplace celle en attente (le dernier clic gagne) ;
+  indicateur de calcul.
 
 Critères :
-- [ ] Test unitaire : la logique d'anti-rebond/génération (dans `core`, sans GTK) ignore les réponses périmées.
+- [ ] Test unitaire (`core`, sans GTK) : 5 demandes pendant un rendu en cours → un seul rendu
+  de plus, avec la dernière demande.
 - [ ] Manuel : critère de réussite 2 (< 2 s, pas de gel) sur un vrai PSD 4096².
 
 Fichiers : `src/ui/{preview,layer_tree}.rs`, `src/core/render_queue.rs`, `data/ui/window.blp`
@@ -143,7 +156,7 @@ Fichiers : `src/ui/{preview,layer_tree}.rs`, `src/core/render_queue.rs`, `data/u
 
 Critères :
 - [ ] Manuel : fermer / rouvrir le PSD restaure toutes les sorties (critère 5, partie GUI).
-- [ ] Nom de fichier de sortie invalide ou en double → refusé avec explication.
+- [ ] Nom de fichier de sortie invalide ou en double → refusé avec explication (validation de `core::recipe`, pas de copie dans l'UI).
 
 Fichiers : `src/ui/outputs_panel.rs`, `data/ui/outputs_panel.blp`, `src/ui/window.rs`
 
@@ -196,7 +209,8 @@ Fichiers : `helper/psd_helper.py`, `helper/test_psd_helper.py`, `src/core/{helpe
 
 ### T12 — `install.sh`, `.desktop`, icône, `v1.0.0`  ·  dépend : T11  ·  S
 
-- `install.sh` : venv psd-tools, binaires dans `~/.local/bin`, `.desktop` + icône, désinstallation.
+- `install.sh` : appelle `scripts/setup-venv.sh` (aucune version de psd-tools ici), binaires dans
+  `~/.local/bin`, `.desktop` + icône, désinstallation.
 - `README.md` (installation, CLI, PhotoCraft via CLI), passage de version `1.0.0`.
 
 Critères :
