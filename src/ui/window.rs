@@ -110,7 +110,6 @@ pub struct Window {
     progress: gtk::ProgressBar,
     stop: gtk::Button,
     log: gtk::TextView,
-    actions: gio::SimpleActionGroup,
     state: RefCell<State>,
     /// Set while the code itself changes widgets, so their handlers do nothing.
     updating: Cell<bool>,
@@ -380,7 +379,6 @@ impl Window {
             progress,
             stop,
             log,
-            actions: gio::SimpleActionGroup::new(),
             state: RefCell::new(State {
                 scale: 1.0,
                 ..State::default()
@@ -389,6 +387,12 @@ impl Window {
             pulsing: Cell::new(false),
         });
         this.connect(&add, &duplicate, &rename, &delete, &choose_dir);
+        // Handlers hold weak references: this one keeps the window state alive until close.
+        let keep = RefCell::new(Some(this.clone()));
+        this.window.connect_close_request(move |_| {
+            keep.take();
+            glib::Propagation::Proceed
+        });
         this.set_has_psd(false);
         this
     }
@@ -405,7 +409,6 @@ impl Window {
         delete: &gtk::Button,
         choose_dir: &gtk::Button,
     ) {
-        self.window.insert_action_group("win", Some(&self.actions));
         self.action("open", |this| this.choose_psd());
         self.action("export", |this| this.export(false));
         self.action("export-all", |this| this.export(true));
@@ -423,7 +426,7 @@ impl Window {
                 this.set_no_preview(on);
             }
         });
-        self.actions.add_action(&no_preview);
+        self.window.add_action(&no_preview);
 
         let drop = gtk::DropTarget::new(gio::File::static_type(), gdk::DragAction::COPY);
         let this = Rc::downgrade(self);
@@ -515,7 +518,7 @@ impl Window {
                 f(&this);
             }
         });
-        self.actions.add_action(&action);
+        self.window.add_action(&action);
     }
 
     fn on_click(self: &Rc<Self>, button: &gtk::Button, f: impl Fn(&Rc<Self>) + 'static) {
@@ -529,7 +532,7 @@ impl Window {
 
     fn set_has_psd(&self, has: bool) {
         for name in ["export", "export-all"] {
-            if let Some(action) = self.actions.lookup_action(name) {
+            if let Some(action) = self.window.lookup_action(name) {
                 action
                     .downcast::<gio::SimpleAction>()
                     .expect("our own action")
@@ -672,8 +675,14 @@ impl Window {
             .build();
         let this = Rc::downgrade(self);
         dialog.open(Some(&self.window), gio::Cancellable::NONE, move |file| {
-            if let (Some(path), Some(this)) = (file.ok().and_then(|f| f.path()), this.upgrade()) {
-                this.open(path);
+            let Some(this) = this.upgrade() else { return };
+            match file {
+                Ok(file) => match file.path() {
+                    Some(path) => this.open(path),
+                    None => this.error("Fichier non local", &file.uri()),
+                },
+                Err(e) if e.matches(gtk::DialogError::Dismissed) => {}
+                Err(e) => this.error("Sélecteur de fichiers indisponible", &e.to_string()),
             }
         });
     }
