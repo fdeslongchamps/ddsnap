@@ -1,5 +1,8 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use clap::{Parser, Subcommand};
 use ddsnap::core::dds::{Format, Size};
@@ -69,8 +72,12 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             size,
             no_mipmaps,
         } => {
+            let progress = Progress::start();
+            progress.step("démarrage de l'assistant psd-tools");
             let mut helper = Helper::spawn()?;
+            progress.step(&format!("ouverture du PSD {}", psd.display()));
             let tree = helper.open(&psd)?;
+            progress.step("lecture de la recette");
             // Validated here: every output name is a plain .dds name, so `dir.join` stays in dir.
             let recipe = Recipe::load(&psd, &tree)?;
             let outputs: Vec<_> = match &output {
@@ -105,6 +112,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     &resolution.visible,
                     settings,
                     &dir.join(&out.file),
+                    &mut |s| progress.step(&format!("{} : {s}", out.file)),
                 )?;
                 for warning in resolution.warnings().iter().chain(&report.warnings) {
                     eprintln!("avertissement : {} : {warning}", out.file);
@@ -114,6 +122,51 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     Ok(())
+}
+
+/// Prints each step on stderr with the elapsed time, and a reminder every 15 s while a
+/// step runs, so a long psd-tools render never looks frozen.
+struct Progress {
+    start: Instant,
+    current: Arc<Mutex<String>>,
+}
+
+impl Progress {
+    fn start() -> Progress {
+        let progress = Progress {
+            start: Instant::now(),
+            current: Arc::default(),
+        };
+        let (start, current) = (progress.start, Arc::downgrade(&progress.current));
+        thread::spawn(move || {
+            let mut last = String::new();
+            let mut since = Instant::now();
+            // Ends once `Progress` (the only strong reference) is dropped.
+            while let Some(current) = current.upgrade() {
+                thread::sleep(Duration::from_secs(1));
+                let Ok(now) = current.lock().map(|c| c.clone()) else {
+                    break;
+                };
+                if now != last {
+                    (last, since) = (now, Instant::now());
+                } else if since.elapsed() >= Duration::from_secs(15) {
+                    eprintln!(
+                        "[{:>6.1} s] … toujours en cours : {now}",
+                        start.elapsed().as_secs_f64()
+                    );
+                    since = Instant::now();
+                }
+            }
+        });
+        progress
+    }
+
+    fn step(&self, label: &str) {
+        eprintln!("[{:>6.1} s] {label}", self.start.elapsed().as_secs_f64());
+        if let Ok(mut current) = self.current.lock() {
+            *current = label.to_string();
+        }
+    }
 }
 
 fn print_tree(tree: &LayerTree) {

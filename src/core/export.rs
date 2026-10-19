@@ -71,16 +71,37 @@ impl From<DdsError> for ExportError {
 }
 
 /// Renders `visible` at full size and writes it to `dest` as DDS.
+/// `step` is called with a French label before each phase (CLI output, GUI progress bar).
 pub fn export(
     helper: &mut Helper,
     visible: &[usize],
     settings: Settings,
     dest: &Path,
+    step: &mut dyn FnMut(&str),
 ) -> Result<Report, ExportError> {
-    let image = dds::resize(helper.render(visible, 1.0)?, settings.size);
+    step(&format!(
+        "rendu de {} calques (psd-tools, peut prendre plusieurs minutes)",
+        visible.len()
+    ));
+    let rendered = helper.render(visible, 1.0)?;
+    let (width, height) = settings.size.target(rendered.width, rendered.height);
+    if (width, height) != (rendered.width, rendered.height) {
+        step(&format!("redimensionnement en {width}×{height}"));
+    }
+    let image = dds::resize(rendered, settings.size);
     let format = settings.format.resolve(&image.data);
     let warnings = dds::size_warnings(image.width, image.height, format);
+    let mips = if settings.no_mipmaps {
+        ""
+    } else {
+        " + mipmaps"
+    };
+    step(&format!(
+        "encodage {}{mips}",
+        format.to_string().to_uppercase()
+    ));
     let bytes = dds::encode(&image, format, !settings.no_mipmaps)?;
+    step(&format!("écriture de {}", dest.display()));
     write_atomic(dest, |f| f.write_all(&bytes)).map_err(|e| ExportError::Io(dest.into(), e))?;
     Ok(Report {
         path: dest.into(),

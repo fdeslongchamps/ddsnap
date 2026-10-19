@@ -23,7 +23,7 @@ free -h | head -2
 nproc | sed 's/^/cœurs : /'
 
 echo "== Compilation"
-cargo build --release --quiet --manifest-path "$ROOT/Cargo.toml"
+cargo build --release --manifest-path "$ROOT/Cargo.toml"  # première fois : 2 à 5 min
 DDSNAP="$ROOT/target/release/ddsnap"
 
 WORK="$(mktemp -d)"

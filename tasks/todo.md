@@ -139,7 +139,8 @@ Fichiers : `Cargo.toml`, `build.rs`, `data/ui/{window,welcome}.blp`, `data/resou
   RVB / Alpha / RVB+A sur damier.
 - Cases à cocher dans l'arbre → `core::render_queue` : au plus un rendu en cours et une seule
   demande en attente, une nouvelle demande remplace celle en attente (le dernier clic gagne) ;
-  indicateur de calcul.
+  indicateur de calcul : barre de progression avec l'étape et le temps écoulé (rappels de
+  `core::export` via son paramètre `step`).
 
 Critères :
 - [ ] Test unitaire (`core`, sans GTK) : 5 demandes pendant un rendu en cours → un seul rendu
@@ -163,6 +164,7 @@ Fichiers : `src/ui/outputs_panel.rs`, `data/ui/outputs_panel.blp`, `src/ui/windo
 
 ### T9 — Exporter / Tout exporter + Aperçu compressé  ·  dépend : T3, T8  ·  M
 
+- Barre de progression pendant l'export, alimentée par les étapes de `core::export`.
 - Ctrl+E / Ctrl+Maj+E, confirmation « Remplacer » si le DDS existe, toast résultat +
   « Afficher dans le dossier ».
 - « Aperçu compressé » : encode → décode avec `core::dds`, bascule Avant/Après.
@@ -187,7 +189,8 @@ Fichiers : `src/ui/{window,preview}.rs`, `src/core/export.rs`, `data/ui/window.b
 - `core::diagnostics` : journal `~/.local/state/ddsnap/ddsnap.log` (rotation maison à 5 Mo × 3,
   sans nouvelle dépendance), `DDSNAP_LOG=debug`, rapport (versions app/python/psd-tools, OS,
   dernières lignes du journal), `doctor`.
-- GUI : expander « Détails » + « Copier le rapport » sur chaque erreur, Aide › Diagnostic.
+- GUI : expander « Détails » + « Copier le rapport » sur chaque erreur, Aide › Diagnostic,
+  panneau « Journal » repliable qui affiche le journal en direct (demandé par l'utilisateur).
 - CLI : `ddsnap doctor`.
 
 Critères :

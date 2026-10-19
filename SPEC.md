@@ -34,6 +34,9 @@ moteur depuis un terminal et, plus tard, depuis PhotoCraft.
 6. **« Exporter »** (Ctrl+E) écrit la sortie active ; **« Tout exporter »** (Ctrl+Maj+E)
    écrit toutes les sorties. Dossier de sortie par défaut : celui du PSD. Si le fichier existe,
    confirmation « Remplacer » (c'est le cas normal : on réexporte la skin), jamais le PSD.
+   Pendant tout calcul (ouverture, aperçu, export), une **barre de progression** affiche
+   l'étape en cours et le temps écoulé (« Rendu de 36 calques (psd-tools)… 42 s »,
+   « Encodage BC3 + mipmaps… ») ; l'app ne doit jamais avoir l'air figée.
 7. Fin → toast « livery.dds — 4096×4096 · BC3 · 21,3 Mo » avec « Afficher dans le dossier ».
    Erreur → message lisible + détails techniques dans un expander + bouton « Copier le
    rapport » (voir Diagnostic).
@@ -137,6 +140,11 @@ l'appellent sans dépendre de l'interface graphique.
 
 - Journal rotatif dans `~/.local/state/ddsnap/ddsnap.log` (opérations, durées, erreurs,
   stderr Python complet). `DDSNAP_LOG=debug` pour plus de détail.
+- **Panneau « Journal »** dans l'app (repliable, en bas de la fenêtre) : les mêmes lignes que
+  le journal, en direct (étape, durée, avertissements, stderr de l'assistant), pour voir ce
+  que l'app fait pendant un long rendu.
+- La CLI affiche chaque étape sur stderr avec le temps écoulé (`[  42.0 s] livery.dds :
+  rendu de 36 calques…`) et un rappel toutes les 15 s pendant une étape longue.
 - Toute erreur affiche : quoi (phrase en français), où (fichier, calque), et un bouton
   **« Copier le rapport »** = version de l'app, versions python/psd-tools, OS, dernières
   lignes du journal. C'est ce que je colle dans Claude Code ou une issue pour qu'on corrige.

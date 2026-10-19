@@ -48,6 +48,7 @@ def send(proc, req):
 
 def bench(path):
     proc = subprocess.Popen([sys.executable, "-I", "-c", SCRIPT], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    print(f"  ouverture de {path.name}…", flush=True)
     t = time.perf_counter()
     tree, _ = send(proc, {"cmd": "open", "path": str(path)})
     t_open = time.perf_counter() - t
@@ -57,6 +58,7 @@ def bench(path):
     visible = visible_as_in_psd(tree["layers"])
     timings = {}
     for scale in (1.0, 0.25):
+        print(f"  rendu {scale:.0%} de {len(visible)} calques (psd-tools, plusieurs minutes possibles)…", flush=True)
         t = time.perf_counter()
         header, data = send(proc, {"cmd": "render", "visible": visible, "scale": scale})
         if not header["ok"]:
