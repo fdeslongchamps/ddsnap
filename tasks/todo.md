@@ -45,10 +45,10 @@ Fichiers : `scripts/setup-venv.sh`, `helper/psd_helper.py`, `helper/test_psd_hel
 - `src/bin/ddsnap.rs` : `ddsnap layers <psd> [--json]`.
 
 Critères :
-- [ ] Tests unitaires sur des réponses JSON enregistrées (`tests/fixtures/`) : arbre, chemins
+- [x] Tests unitaires sur des réponses JSON enregistrées (`tests/fixtures/`) : arbre, chemins
   avec `/` dans un nom (échappé), erreur de l'assistant.
-- [ ] `#[ignore]` : `ddsnap layers` sur un PSD généré affiche l'arbre attendu.
-- [ ] Sans venv → message « psd-tools introuvable : lancez scripts/setup-venv.sh ».
+- [x] `#[ignore]` : `ddsnap layers` sur un PSD généré affiche l'arbre attendu.
+- [x] Sans venv → message « psd-tools introuvable : lancez scripts/setup-venv.sh ».
 
 Fichiers : `Cargo.toml`, `src/lib.rs`, `src/core/{mod,helper,layers}.rs`, `src/bin/ddsnap.rs`,
 `tests/fixtures/*.json`
