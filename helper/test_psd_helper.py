@@ -9,7 +9,8 @@ import pytest
 from PIL import Image
 from psd_tools import PSDImage
 from psd_tools.api.layers import Group, PixelLayer
-from psd_tools.constants import BlendMode, Tag
+from psd_tools.constants import BlendMode, Resource, Tag
+from psd_tools.psd.image_resources import ImageResource, VersionInfo
 
 SCRIPT = (Path(__file__).parent / "psd_helper.py").read_text()
 
@@ -180,3 +181,24 @@ def test_stray_output_does_not_corrupt_protocol(psd_path):
         assert header["ok"]
     finally:
         h.close()
+
+
+def test_saved_returns_photoshop_composite(helper, psd_path):
+    helper.send({"cmd": "open", "path": str(psd_path)})
+    header, data = helper.send({"cmd": "saved"})
+    assert header["ok"] and (header["width"], header["height"]) == (8, 8)
+    assert pixel(header, data, 0, 0) == BLUE and pixel(header, data, 7, 7) == RED
+
+
+def test_saved_without_composite_says_so(helper, tmp_path):
+    psd = PSDImage.new("RGB", (4, 4))
+    PixelLayer.frompil(Image.new("RGBA", (4, 4), RED), psd, "Red")
+    # What Photoshop writes when "Maximize compatibility" is off.
+    psd.image_resources[Resource.VERSION_INFO] = ImageResource(
+        key=Resource.VERSION_INFO, data=VersionInfo(has_composite=False)
+    )
+    path = tmp_path / "nocomp.psd"
+    psd.save(path)
+    helper.send({"cmd": "open", "path": str(path)})
+    header, _ = helper.send({"cmd": "saved"})
+    assert header["ok"] is False and header["kind"] == "no_composite"

@@ -121,7 +121,7 @@ fn export_without_recipe_uses_psd_visibility() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     for step in [
         "ouverture du PSD",
-        "rendu de 3 calques",
+        "composite Photoshop",
         "encodage BC1",
         "écriture",
     ] {

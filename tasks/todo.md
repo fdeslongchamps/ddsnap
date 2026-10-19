@@ -100,9 +100,10 @@ ADR-005 §2. Commande `saved` dans l'assistant (image aplatie enregistrée, RGBA
 l'utilise si la visibilité de la sortie == `psd_visible()` et que l'image existe, sinon psd-tools.
 
 Critères :
-- [ ] pytest : `saved` renvoie l'image enregistrée ; PSD sans image → `ok:false`, `kind:"no_composite"`.
-- [ ] `#[ignore]` : export d'un PSD « tel quel » passe par `saved` (étape « composite Photoshop »),
+- [x] pytest : `saved` renvoie l'image enregistrée ; PSD sans image → `ok:false`, `kind:"no_composite"`.
+- [x] `#[ignore]` : export d'un PSD « tel quel » passe par `saved` (étape « composite Photoshop »),
   une recette différente passe par psd-tools.
+  Mesuré : `EXT_Main.psd` 51,6 s / 4,3 Go (psd-tools, laptop) → 5,0 s / 1,2 Go (composite, machine de dev).
 
 ### Checkpoint A — moteur validé
 - [ ] `cargo test`, `cargo test -- --ignored`, `pytest helper/` verts

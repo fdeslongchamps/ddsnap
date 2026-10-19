@@ -71,19 +71,36 @@ impl From<DdsError> for ExportError {
 }
 
 /// Renders `visible` at full size and writes it to `dest` as DDS.
+/// `as_saved`: `visible` is the PSD's own visibility, so Photoshop's stored image is used when
+/// present (seconds instead of minutes, ADR-005).
 /// `step` is called with a French label before each phase (CLI output, GUI progress bar).
 pub fn export(
     helper: &mut Helper,
     visible: &[usize],
+    as_saved: bool,
     settings: Settings,
     dest: &Path,
     step: &mut dyn FnMut(&str),
 ) -> Result<Report, ExportError> {
-    step(&format!(
-        "rendu de {} calques (psd-tools, peut prendre plusieurs minutes)",
-        visible.len()
-    ));
-    let rendered = helper.render(visible, 1.0)?;
+    let saved = if as_saved {
+        step("lecture du composite Photoshop enregistré dans le PSD");
+        helper.saved()?
+    } else {
+        None
+    };
+    let rendered = match saved {
+        Some(image) => image,
+        None => {
+            if as_saved {
+                step("pas d'image aplatie (« Maximiser la compatibilité » désactivé) : psd-tools");
+            }
+            step(&format!(
+                "rendu de {} calques (psd-tools, peut prendre plusieurs minutes)",
+                visible.len()
+            ));
+            helper.render(visible, 1.0)?
+        }
+    };
     let (width, height) = settings.size.target(rendered.width, rendered.height);
     if (width, height) != (rendered.width, rendered.height) {
         step(&format!("redimensionnement en {width}×{height}"));

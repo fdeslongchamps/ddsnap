@@ -195,7 +195,24 @@ impl Helper {
     /// Composites the layers whose indices are listed (and whose groups are all listed).
     pub fn render(&mut self, visible: &[usize], scale: f64) -> Result<Rgba> {
         let reply = self.request(json!({"cmd": "render", "visible": visible, "scale": scale}))?;
-        let header: RenderHeader = parse_reply(&reply)?;
+        self.read_image(&reply)
+    }
+
+    /// The flattened image Photoshop stored in the file; `None` when it saved without
+    /// "Maximize compatibility" (ADR-005).
+    pub fn saved(&mut self) -> Result<Option<Rgba>> {
+        let reply = self.request(json!({"cmd": "saved"}))?;
+        let kind = serde_json::from_str::<serde_json::Value>(&reply)
+            .ok()
+            .and_then(|v| v["kind"].as_str().map(str::to_owned));
+        if kind.as_deref() == Some("no_composite") {
+            return Ok(None);
+        }
+        self.read_image(&reply).map(Some)
+    }
+
+    fn read_image(&mut self, reply: &str) -> Result<Rgba> {
+        let header: RenderHeader = parse_reply(reply)?;
         let mut data = vec![0; header.bytes];
         if self.stdout.read_exact(&mut data).is_err() {
             return Err(self.crashed());

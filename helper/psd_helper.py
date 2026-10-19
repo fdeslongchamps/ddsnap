@@ -6,6 +6,7 @@ answers one JSON line on stdout; a `render` answer is followed by `bytes` raw RG
 Requests:
   {"cmd": "open", "path": "/abs/file.psd"}
   {"cmd": "render", "visible": [0, 2, 5], "scale": 0.25}   # indices from the `open` answer
+  {"cmd": "saved"}   # the flattened image Photoshop stored in the file (same answer as render)
   {"cmd": "quit"}
 
 A layer is drawn only if it and every group above it are listed in `visible`.
@@ -79,6 +80,15 @@ class Session:
             "layers": tree,
         }, None
 
+    def saved(self, req):
+        if self.psd is None:
+            raise RequestError("protocol", "saved: aucun PSD ouvert")
+        # False when Photoshop saved without "Maximize compatibility": the stored image is blank.
+        if not self.psd.has_preview():
+            raise RequestError("no_composite", "pas d'image aplatie enregistrée dans le PSD")
+        data = self.psd.topil().convert("RGBA")
+        return {"width": data.width, "height": data.height, "bytes": data.width * data.height * 4}, data.tobytes()
+
     def render(self, req):
         if self.psd is None:
             raise RequestError("protocol", "render: aucun PSD ouvert")
@@ -109,7 +119,7 @@ def reply(header, data=None):
 
 def main():
     session = Session()
-    handlers = {"open": session.open, "render": session.render}
+    handlers = {"open": session.open, "render": session.render, "saved": session.saved}
     for line in sys.stdin.buffer:
         if not line.strip():
             continue
