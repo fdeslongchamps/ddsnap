@@ -2,6 +2,8 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
+use ddsnap::core::dds::{Format, Size};
+use ddsnap::core::export::{self, Settings};
 use ddsnap::core::helper::Helper;
 use ddsnap::core::layers::LayerTree;
 
@@ -20,6 +22,21 @@ enum Cmd {
         /// Sortie JSON (réponse brute de l'assistant)
         #[arg(long)]
         json: bool,
+    },
+    /// Exporte le PSD en DDS (calques visibles dans le PSD)
+    Export {
+        psd: PathBuf,
+        /// auto, bc1, bc3, bc7, rgba8
+        #[arg(long, default_value = "auto")]
+        format: Format,
+        /// source, 4096, 2048, 1024
+        #[arg(long, default_value = "source")]
+        size: Size,
+        #[arg(long)]
+        no_mipmaps: bool,
+        /// Fichier de sortie (défaut : <psd>.dds à côté du PSD)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
     },
 }
 
@@ -42,6 +59,30 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 print_tree(&tree);
             }
+        }
+        Cmd::Export {
+            psd,
+            format,
+            size,
+            no_mipmaps,
+            output,
+        } => {
+            let dest = output.unwrap_or_else(|| psd.with_extension("dds"));
+            if std::path::absolute(&dest)? == std::path::absolute(&psd)? {
+                return Err("la sortie ne peut pas être le PSD lui-même".into());
+            }
+            let mut helper = Helper::spawn()?;
+            let tree = helper.open(&psd)?;
+            let settings = Settings {
+                format,
+                size,
+                no_mipmaps,
+            };
+            let report = export::export(&mut helper, &tree.psd_visible(), settings, &dest)?;
+            for warning in &report.warnings {
+                eprintln!("avertissement : {warning}");
+            }
+            println!("{report}");
         }
     }
     Ok(())

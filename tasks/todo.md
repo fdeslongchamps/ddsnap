@@ -63,9 +63,9 @@ Fichiers : `Cargo.toml`, `src/lib.rs`, `src/core/{mod,helper,layers}.rs`, `src/b
 - CLI : `ddsnap export <psd> [--format auto|bc1|bc3|bc7|rgba8] [--size …] [--no-mipmaps] [-o fichier]`.
 
 Critères :
-- [ ] Tests : `auto_format`, tailles invalides, en-tête DDS (dimensions, FourCC/DXGI, nombre de mips).
-- [ ] `#[ignore]` : PSD généré → DDS → décodé, écart moyen avec le rendu sous un seuil par format.
-- [ ] Erreur au milieu de l'écriture → aucun fichier `.dds` partiel ne reste.
+- [x] Tests : `auto_format`, tailles invalides, en-tête DDS (dimensions, FourCC/DXGI, nombre de mips).
+- [x] `#[ignore]` : PSD généré → DDS → décodé, écart moyen avec le rendu sous un seuil par format.
+- [x] Erreur au milieu de l'écriture → aucun fichier `.dds` partiel ne reste.
 - [ ] Manuel : un DDS d'un vrai PSD s'affiche correctement dans le Showroom de Content Manager.
 
 Fichiers : `Cargo.toml`, `src/core/{dds,export}.rs`, `src/bin/ddsnap.rs`,
