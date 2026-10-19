@@ -365,6 +365,12 @@ pub fn auto_format(rgba: &[u8]) -> DdsFormat {
 
 ## Décisions (2026-10-19)
 
+- **Aperçu en direct fusionné sur le GPU via GTK** (calques extraits une fois par psd-tools) ;
+  option « Sans aperçu » ; l'« Aperçu compressé » et l'export restent exacts (ADR-005).
+- **Export « tel quel »** par l'image aplatie enregistrée par Photoshop quand la visibilité de
+  la sortie est celle du PSD ; psd-tools sinon (ADR-005).
+- Releases GitHub publiées à chaque jalon sans redemander (dépôt privé).
+
 - Nom : **Ddsnap** (binaires `ddsnap` et `ddsnap-gui`).
 - Recette à côté du PSD : `<nom>.ddsnap.json`.
 - Dépôt GitHub **privé**.

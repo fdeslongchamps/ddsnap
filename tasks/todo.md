@@ -94,6 +94,16 @@ Critères :
 Fichiers : `src/core/recipe.rs`, `src/core/export.rs`, `src/bin/ddsnap.rs`,
 `docs/decisions/ADR-004-recipe-sidecar.md`
 
+### T4b — Export rapide par le composite Photoshop  ·  dépend : T4  ·  S
+
+ADR-005 §2. Commande `saved` dans l'assistant (image aplatie enregistrée, RGBA) ; `core::export`
+l'utilise si la visibilité de la sortie == `psd_visible()` et que l'image existe, sinon psd-tools.
+
+Critères :
+- [ ] pytest : `saved` renvoie l'image enregistrée ; PSD sans image → `ok:false`, `kind:"no_composite"`.
+- [ ] `#[ignore]` : export d'un PSD « tel quel » passe par `saved` (étape « composite Photoshop »),
+  une recette différente passe par psd-tools.
+
 ### Checkpoint A — moteur validé
 - [ ] `cargo test`, `cargo test -- --ignored`, `pytest helper/` verts
 - [ ] 3 DDS issus de vrais PSD vérifiés dans Content Manager
@@ -133,21 +143,21 @@ Critères :
 Fichiers : `Cargo.toml`, `build.rs`, `data/ui/{window,welcome}.blp`, `data/resources.gresource.xml`,
 `src/bin/ddsnap-gui.rs`, `src/ui/{mod,window,layer_tree}.rs`
 
-### T7 — Aperçu en direct  ·  dépend : T6  ·  M
+### T7 — Aperçu en direct sur le GPU  ·  dépend : T6  ·  M
 
-- `ui/preview.rs` : rendu à l'échelle de la fenêtre, zoom (ajusté / 100 % / molette), déplacement,
-  RVB / Alpha / RVB+A sur damier.
-- Cases à cocher dans l'arbre → `core::render_queue` : au plus un rendu en cours et une seule
-  demande en attente, une nouvelle demande remplace celle en attente (le dernier clic gagne) ;
-  indicateur de calcul : barre de progression avec l'étape et le temps écoulé (rappels de
-  `core::export` via son paramètre `step`).
+ADR-005 §1 (remplace `core::render_queue`).
+- Assistant : commande `layers` (`scale`) → pour chaque calque : en-tête (index, x, y, largeur,
+  hauteur, opacité, mode de fusion, octets) + RGBA du calque seul à l'échelle.
+- `ui/preview.rs` : fusion des calques cochés dans un `GtkSnapshot` (blend, opacité, groupes),
+  zoom (ajusté / 100 % / molette), déplacement, RVB / Alpha / RVB+A sur damier.
+- Barre de progression pendant l'extraction ; option « Sans aperçu ».
 
 Critères :
-- [ ] Test unitaire (`core`, sans GTK) : 5 demandes pendant un rendu en cours → un seul rendu
-  de plus, avec la dernière demande.
-- [ ] Manuel : critère de réussite 2 (< 2 s, pas de gel) sur un vrai PSD 4096².
+- [ ] pytest : `layers` renvoie un calque par index, tailles cohérentes avec `scale`.
+- [ ] Test `core` : correspondance mode de fusion PSD → mode GSK (inconnu → normal + avertissement).
+- [ ] Manuel : cocher un calque met l'aperçu à jour sans délai perceptible (critère 2).
 
-Fichiers : `src/ui/{preview,layer_tree}.rs`, `src/core/render_queue.rs`, `data/ui/window.blp`
+Fichiers : `helper/psd_helper.py`, `src/core/preview.rs`, `src/ui/{preview,layer_tree}.rs`
 
 ### T8 — Panneau Sorties lié à la recette  ·  dépend : T4, T7  ·  M
 
