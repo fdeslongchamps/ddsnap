@@ -2,13 +2,13 @@
 
 use std::fmt;
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use super::dds::{Format, Size};
-use super::export::Settings;
+use super::export::{Settings, write_atomic};
 use super::layers::LayerTree;
 
 pub const VERSION: u32 = 1;
@@ -154,6 +154,14 @@ impl Recipe {
         Ok(())
     }
 
+    pub fn save(&self, psd: &Path) -> Result<(), RecipeError> {
+        let path = recipe_path(psd);
+        let mut json =
+            serde_json::to_vec_pretty(self).map_err(|e| RecipeError::Json(path.clone(), e))?;
+        json.push(b'\n');
+        write_atomic(&path, |f| f.write_all(&json)).map_err(|e| RecipeError::Io(path, e))
+    }
+
     /// Reads and validates the PSD's recipe; the default recipe when there is none yet.
     pub fn load(psd: &Path, tree: &LayerTree) -> Result<Recipe, RecipeError> {
         let path = recipe_path(psd);
@@ -254,6 +262,19 @@ impl Output {
         res
     }
 
+    /// Replaces the layers of this output by `indices` of `tree` (GUI checkboxes).
+    pub fn set_visible(&mut self, tree: &LayerTree, indices: &[usize]) {
+        self.visible = tree
+            .layers
+            .iter()
+            .filter(|l| indices.contains(&l.index))
+            .map(|l| LayerRef {
+                id: l.id,
+                path: l.path_string(),
+            })
+            .collect();
+    }
+
     pub fn settings(&self) -> Settings {
         Settings {
             format: self.format,
@@ -278,6 +299,9 @@ mod tests {
             kind: "pixel".into(),
             visible: true,
             has_effects: false,
+            opacity: 255,
+            blend: "normal".into(),
+            clipping: false,
         }
     }
 

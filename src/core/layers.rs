@@ -16,6 +16,23 @@ pub struct Layer {
     /// Visibility saved in the PSD.
     pub visible: bool,
     pub has_effects: bool,
+    /// 0–255, as in Photoshop.
+    #[serde(default = "opaque")]
+    pub opacity: u8,
+    /// psd-tools blend mode name, lowercase (`normal`, `multiply`, `pass_through`…).
+    #[serde(default = "normal")]
+    pub blend: String,
+    /// Clipped to the layer below (not reproduced by the GPU preview).
+    #[serde(default)]
+    pub clipping: bool,
+}
+
+fn opaque() -> u8 {
+    u8::MAX
+}
+
+fn normal() -> String {
+    "normal".into()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -31,6 +48,10 @@ impl Layer {
     /// `Group/Sub/Layer`, with `\` and `/` inside names escaped as `\\` and `\/`.
     pub fn path_string(&self) -> String {
         join_path(&self.path)
+    }
+
+    pub fn is_group(&self) -> bool {
+        self.kind == "group"
     }
 
     pub fn depth(&self) -> usize {

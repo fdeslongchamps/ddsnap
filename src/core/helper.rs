@@ -77,6 +77,20 @@ struct RenderHeader {
     bytes: usize,
 }
 
+/// One layer alone, at preview scale, placed at (`x`, `y`) on the scaled canvas.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LayerImage {
+    pub x: i32,
+    pub y: i32,
+    pub image: Rgba,
+}
+
+#[derive(Debug, Deserialize)]
+struct LayerHeader {
+    x: i32,
+    y: i32,
+}
+
 /// An RGBA8 image, rows top to bottom.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Rgba {
@@ -209,6 +223,17 @@ impl Helper {
             return Ok(None);
         }
         self.read_image(&reply).map(Some)
+    }
+
+    /// One layer alone (effects, mask, opacity applied) for the GPU preview (ADR-005).
+    pub fn layer(&mut self, index: usize, scale: f64) -> Result<LayerImage> {
+        let reply = self.request(json!({"cmd": "layer", "index": index, "scale": scale}))?;
+        let pos: LayerHeader = parse_reply(&reply)?;
+        Ok(LayerImage {
+            x: pos.x,
+            y: pos.y,
+            image: self.read_image(&reply)?,
+        })
     }
 
     fn read_image(&mut self, reply: &str) -> Result<Rgba> {

@@ -7,6 +7,8 @@ Requests:
   {"cmd": "open", "path": "/abs/file.psd"}
   {"cmd": "render", "visible": [0, 2, 5], "scale": 0.25}   # indices from the `open` answer
   {"cmd": "saved"}   # the flattened image Photoshop stored in the file (same answer as render)
+  {"cmd": "layer", "index": 3, "scale": 0.25}   # one layer alone (effects, mask, opacity
+      applied), for the GPU preview: {"x", "y", "width", "height", "bytes"} + RGBA bytes
   {"cmd": "quit"}
 
 A layer is drawn only if it and every group above it are listed in `visible`.
@@ -23,7 +25,7 @@ _proto = os.fdopen(os.dup(1), "wb")
 os.dup2(2, 1)
 sys.stdout = sys.stderr
 
-from PIL import Image  # noqa: E402
+from PIL import Image, ImageChops  # noqa: E402
 from psd_tools import PSDImage  # noqa: E402
 
 
@@ -70,6 +72,9 @@ class Session:
                     "kind": layer.kind,
                     "visible": layer.visible,
                     "has_effects": bool(layer.has_effects()),
+                    "opacity": layer.opacity,
+                    "blend": layer.blend_mode.name.lower(),
+                    "clipping": bool(layer.clipping),
                 }
             )
         return {
@@ -88,6 +93,33 @@ class Session:
             raise RequestError("no_composite", "pas d'image aplatie enregistrée dans le PSD")
         data = self.psd.topil().convert("RGBA")
         return {"width": data.width, "height": data.height, "bytes": data.width * data.height * 4}, data.tobytes()
+
+    def layer(self, req):
+        if self.psd is None:
+            raise RequestError("protocol", "layer: aucun PSD ouvert")
+        index, scale = req.get("index"), req.get("scale", 1.0)
+        if not isinstance(index, int) or not 0 <= index < len(self.layers):
+            raise RequestError("protocol", "layer: 'index' invalide")
+        if not isinstance(scale, (int, float)) or not 0 < scale <= 1:
+            raise RequestError("protocol", "layer: 'scale' doit être dans ]0, 1]")
+        layer = self.layers[index]
+        if layer.is_group():
+            raise RequestError("protocol", "layer: un groupe n'a pas d'image propre")
+        left, top = layer.bbox[0], layer.bbox[1]
+        image = plain_pixels(layer)
+        if image is None:
+            # layer_filter: draw it even when hidden in the PSD; the user decides in the app.
+            image = layer.composite(layer_filter=lambda _: True)
+        if image is None or image.width == 0 or image.height == 0:
+            return {"x": 0, "y": 0, "width": 0, "height": 0, "bytes": 0}, b""
+        image = image.convert("RGBA")
+        if scale < 1:
+            size = (max(1, round(image.width * scale)), max(1, round(image.height * scale)))
+            image = image.resize(size, Image.Resampling.BOX)
+        data = image.tobytes()
+        header = {"x": round(left * scale), "y": round(top * scale), "width": image.width,
+                  "height": image.height, "bytes": len(data)}
+        return header, data
 
     def render(self, req):
         if self.psd is None:
@@ -110,6 +142,32 @@ class Session:
         return {"width": image.width, "height": image.height, "bytes": len(data)}, data
 
 
+def plain_pixels(layer):
+    """Fast path for the preview: decoded pixels with raster mask and opacity applied.
+
+    None when psd-tools must compose the layer (effects, vector shapes, fills): that costs
+    seconds per layer instead of milliseconds.
+    """
+    if layer.kind not in ("pixel", "smartobject", "type") or layer.has_effects():
+        return None
+    if layer.has_vector_mask() or not layer.has_pixels():
+        return None
+    image = layer.topil()
+    if image is None:
+        return None
+    image = image.convert("RGBA")
+    alpha = image.getchannel("A")
+    mask = layer.mask
+    if mask is not None and not mask.disabled and mask.width and mask.height:
+        full = Image.new("L", image.size, mask.background_color)
+        full.paste(mask.topil(), (mask.left - layer.left, mask.top - layer.top))
+        alpha = ImageChops.multiply(alpha, full)
+    if layer.opacity < 255:
+        alpha = alpha.point(lambda a: a * layer.opacity // 255)
+    image.putalpha(alpha)
+    return image
+
+
 def reply(header, data=None):
     _proto.write(json.dumps(header, ensure_ascii=False).encode() + b"\n")
     if data is not None:
@@ -119,7 +177,12 @@ def reply(header, data=None):
 
 def main():
     session = Session()
-    handlers = {"open": session.open, "render": session.render, "saved": session.saved}
+    handlers = {
+        "open": session.open,
+        "render": session.render,
+        "saved": session.saved,
+        "layer": session.layer,
+    }
     for line in sys.stdin.buffer:
         if not line.strip():
             continue
