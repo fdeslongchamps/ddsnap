@@ -49,6 +49,7 @@ fn layers_prints_tree() {
         String::from_utf8(out.stdout).unwrap(),
         "64×64 · 8 bits · RGB\nRed\nG  [group]\n  Blue/Bleu\nGreen  [masqué dans le PSD]\n"
     );
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 fn decode(path: &Path) -> ddsnap::core::helper::Rgba {
@@ -103,6 +104,7 @@ fn export_matches_render_per_format() {
         let diff = mean_diff(&expected.data, &got.data);
         assert!(diff <= max_mean, "{format}: écart moyen {diff}");
     }
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -122,6 +124,7 @@ fn export_without_recipe_uses_psd_visibility() {
             .starts_with("skin.dds — 64×64 · BC1")
     );
     assert_eq!(dds_files(&dir), ["skin.dds"]);
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 const TWO_OUTPUTS: &str = r#"{"version": 1, "outputs": [
@@ -163,6 +166,7 @@ fn recipe_with_two_outputs_writes_two_different_dds() {
     ]);
     assert!(out.status.success());
     assert_eq!(dds_files(&dir), ["mask.dds"]);
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -182,5 +186,6 @@ fn invalid_recipe_writes_nothing() {
         assert!(dds_files(&dir).is_empty(), "{bad}");
         assert!(!dir.parent().unwrap().join("x.dds").exists(), "{bad}");
         assert_eq!(std::fs::read(&psd).unwrap(), before);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

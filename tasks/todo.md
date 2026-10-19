@@ -14,7 +14,7 @@ Valide le risque n°1 avant tout le reste. Écrit ADR-001.
 
 - `scripts/setup-venv.sh` : crée `~/.local/share/ddsnap/venv`, installe `psd-tools` (version figée).
 - `helper/psd_helper.py` : boucle JSON-lignes sur stdin/stdout, commandes `open` (arbre avec
-  `layer_id`, chemin, type, visibilité), `render` (`visible: [layer_id…]`, `scale`), `quit`.
+  `layer_id`, chemin, type, visibilité), `render` (`visible: [index…]` de la réponse `open`, pas des `layer_id` — voir ADR-001, `scale`), `quit`.
   Réponse d'erreur `{"ok":false,"error":…,"kind":…}`. Première chose au démarrage : garder le
   vrai stdout (binaire) pour le protocole et rediriger `sys.stdout` vers stderr.
 - `helper/test_psd_helper.py` : PSD générés dans le test (groupe, calque masqué, mode de fusion).

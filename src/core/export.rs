@@ -137,6 +137,7 @@ mod tests {
         .unwrap_err();
         assert_eq!(err.to_string(), "disque plein");
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 0);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -149,6 +150,7 @@ mod tests {
         write_atomic(&dest, |f| f.write_all(b"new")).unwrap();
         assert_eq!(fs::read(&dest).unwrap(), b"new");
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

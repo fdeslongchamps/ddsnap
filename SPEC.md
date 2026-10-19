@@ -141,7 +141,7 @@ PNG, pour éviter un encodage inutile.
 ```
 → {"cmd":"open","path":"/…/livery.psd"}
 ← {"ok":true,"width":4096,"height":4096,"layers":[…]}
-→ {"cmd":"render","visible":[12,31,47],"scale":0.25}
+→ {"cmd":"render","visible":[0,3,7],"scale":0.25}   # index de la réponse open (ADR-001)
 ← {"ok":true,"width":1024,"height":1024,"bytes":4194304}  + 4194304 octets RGBA
 ```
 

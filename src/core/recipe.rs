@@ -2,13 +2,13 @@
 
 use std::fmt;
 use std::fs;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use super::dds::{Format, Size};
-use super::export::{Settings, write_atomic};
+use super::export::Settings;
 use super::layers::LayerTree;
 
 pub const VERSION: u32 = 1;
@@ -84,8 +84,9 @@ pub fn validate_output_name<'a>(
             "sortie « {name} » : {why}"
         )))
     };
-    if name.contains('/') || name.contains('\\') || name.contains("..") {
-        return refuse("un simple nom de fichier est attendu (sans / ni ..)");
+    // With no separator and a .dds ending, a name can never reach `..` or another folder.
+    if name.contains('/') || name.contains('\\') {
+        return refuse("un simple nom de fichier est attendu (sans / ni \\)");
     }
     if name == psd_name {
         return refuse("ce serait écraser le PSD");
@@ -160,14 +161,6 @@ impl Recipe {
         let recipe = Recipe::deserialize(value).map_err(|e| RecipeError::Json(path, e))?;
         recipe.validate(&psd.file_name().unwrap_or_default().to_string_lossy())?;
         Ok(recipe)
-    }
-
-    pub fn save(&self, psd: &Path) -> Result<(), RecipeError> {
-        let path = recipe_path(psd);
-        let mut json =
-            serde_json::to_vec_pretty(self).map_err(|e| RecipeError::Json(path.clone(), e))?;
-        json.push(b'\n');
-        write_atomic(&path, |f| f.write_all(&json)).map_err(|e| RecipeError::Io(path, e))
     }
 }
 
@@ -465,6 +458,7 @@ mod tests {
         }
         assert!(validate_output_name("x.dds", "livery.psd", ["x.dds"]).is_err());
         assert!(validate_output_name("ext_config_mask.DDS", "livery.psd", ["livery.dds"]).is_ok());
+        assert!(validate_output_name("livery..v2.dds", "livery.psd", []).is_ok());
 
         let mut recipe = Recipe::default_for(Path::new("/s/livery.psd"), &original());
         recipe.outputs.push(recipe.outputs[0].clone());
