@@ -180,6 +180,9 @@ pub struct Resolution {
     pub by_path_only: Vec<String>,
     /// Layers not found, or whose path now matches several layers.
     pub missing: Vec<String>,
+    /// (layer, group) pairs: the layer is listed but a group above it is not, so the
+    /// helper will not draw it.
+    pub outside_group: Vec<(String, String)>,
 }
 
 impl Resolution {
@@ -192,7 +195,10 @@ impl Resolution {
             .missing
             .iter()
             .map(|p| format!("calque « {p} » de la recette introuvable"));
-        by_path.chain(missing).collect()
+        let outside = self.outside_group.iter().map(|(layer, group)| {
+            format!("calque « {layer} » non dessiné : son groupe « {group} » n'est pas coché")
+        });
+        by_path.chain(missing).chain(outside).collect()
     }
 }
 
@@ -219,6 +225,22 @@ impl Output {
                     }
                 }
                 _ => res.missing.push(wanted.path.clone()),
+            }
+        }
+        // By `index`, not position: the two only match in trees straight from the helper.
+        let by_index = |i: usize| tree.layers.iter().find(|l| l.index == i);
+        for &index in &res.visible {
+            let Some(layer) = by_index(index) else {
+                continue;
+            };
+            let mut parent = layer.parent.and_then(by_index);
+            while let Some(group) = parent {
+                if !res.visible.contains(&group.index) {
+                    let pair = (layer.path_string(), group.path_string());
+                    res.outside_group.push(pair);
+                    break;
+                }
+                parent = group.parent.and_then(by_index);
             }
         }
         res
@@ -373,6 +395,29 @@ mod tests {
             ..output_of(&twins)
         };
         assert_eq!(no_id.resolve(&twins).missing, ["Logo"]);
+    }
+
+    #[test]
+    fn layer_without_its_group_is_reported() {
+        let only_child = Output {
+            visible: vec![LayerRef {
+                id: Some(47),
+                path: "Numéro/42".into(),
+            }],
+            ..output_of(&original())
+        };
+        let res = only_child.resolve(&original());
+        assert_eq!(res.visible, [3]);
+        assert_eq!(
+            res.warnings(),
+            ["calque « Numéro/42 » non dessiné : son groupe « Numéro » n'est pas coché"]
+        );
+        assert!(
+            output_of(&original())
+                .resolve(&original())
+                .warnings()
+                .is_empty()
+        );
     }
 
     #[test]
