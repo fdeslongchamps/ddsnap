@@ -39,6 +39,13 @@ psd-tools (`open`, rendu 100 % / 25 %, écart avec le composite Photoshop), et l
 avec son temps et son pic mémoire. Les rendus d'un PSD 4096² ou plus prennent plusieurs
 minutes.
 
+## Architecture
+
+- `src/core/` : logique sans GTK (lecture du PSD via l'assistant Python, recette, DDS, export).
+- `helper/psd_helper.py` : assistant psd-tools, lancé une fois et piloté en JSON par lignes.
+- `src/ui/` : l'application GNOME, incluse seulement dans `ddsnap-gui`.
+- Décisions et leurs raisons : [docs/decisions/](docs/decisions/) (ADR-001 à ADR-007).
+
 ## CLI
 
 ```bash

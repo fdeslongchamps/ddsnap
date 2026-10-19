@@ -1,4 +1,4 @@
-# Spec : Ddsnap — PSD → DDS pour skins Assetto Corsa, GUI GNOME
+# Spec : Ddsnap — calques PSD → textures DDS, GUI GNOME
 
 Statut : **approuvée** · 2026-10-19 · révision « sync ADR-001…004 » **en attente d'approbation**
 Projet frère : [`../Gui_FFMEG`](../Gui_FFMEG/SPEC.md) (même stack, mêmes conventions).
@@ -10,7 +10,8 @@ chaque texture, me montre **l'aperçu du DDS final** (compression comprise) et l
 bon format pour Assetto Corsa. Plus besoin d'ouvrir Photoshop/Wine ni de masquer des calques à
 la main avant chaque export.
 
-Utilisateur : moi, peintre de livrées AC sous Ubuntu. Objectif secondaire : réutiliser le
+Utilisateur : moi, peintre de livrées AC sous Ubuntu. L'outil reste générique : toute personne
+qui exporte des textures DDS depuis un PSD (jeux, mods, 3D) doit pouvoir s'en servir (ADR-007). Objectif secondaire : réutiliser le
 moteur depuis un terminal et, plus tard, depuis PhotoCraft.
 
 ### Parcours utilisateur
@@ -166,7 +167,7 @@ l'appellent sans dépendre de l'interface graphique.
 |---|---|---|
 | Langage | Rust, édition 2024 | stable ≥ 1.92 |
 | UI | gtk4-rs + libadwaita-rs | gtk4 0.11.5 (`v4_14`), libadwaita 0.9.2 (`v1_5`) |
-| Interface déclarative | Blueprint → GtkBuilder, compilé dans `build.rs` | blueprint-compiler ≥ 0.10 |
+| Interface | construite en Rust, sans Blueprint ni GResource ; `ui/` hors de la bibliothèque (ADR-006) | — |
 | Async | `core` **synchrone** (`std::process`, bloquant) ; la GUI l'appelle depuis un thread de travail et revient sur la boucle GLib (ADR-002) ; pas de tokio | — |
 | Lecture PSD + composition | **psd-tools** (Python) dans un processus assistant long-vivant | python ≥ 3.12 (testé 3.14), psd-tools **1.25.0** (figé dans `scripts/setup-venv.sh`) |
 | Encodage DDS | crate `image_dds` (BC1/BC3/BC7 via intel_tex_2, décodage bcdec) ; `build.rs` lie libstdc++ pour intel_tex_2 | 0.7.2 |
@@ -213,14 +214,16 @@ psd-tools est installé dans un venv dédié (`$DDSNAP_VENV`, sinon
 (Ubuntu interdit `pip install` système, PEP 668).
 
 Distributions cibles : Ubuntu 24.04 LTS et plus récentes. Paquets système requis :
-`python3 python3-venv libgtk-4-dev libadwaita-1-dev blueprint-compiler build-essential pkg-config`.
+`python3 python3-venv libgtk-4-dev libadwaita-1-dev build-essential pkg-config`.
 
 ## Commandes
 
 ```bash
 # Installation (une fois)
-sudo apt install python3 python3-venv libgtk-4-dev libadwaita-1-dev blueprint-compiler build-essential pkg-config
-./install.sh                               # venv psd-tools + binaire + .desktop
+sudo apt install python3 python3-venv libgtk-4-dev libadwaita-1-dev build-essential pkg-config
+./install.sh                               # venv psd-tools + binaires + .desktop + icônes
+./install.sh --remove                      # désinstalle (venv et journal gardés)
+ddsnap doctor                              # Python, psd-tools, versions, fin du journal
 
 # Dev
 cargo run --bin ddsnap-gui                # l'app
@@ -242,15 +245,16 @@ gh release create vX.Y.Z dist/ddsnap-vX.Y.Z-x86_64-linux.tar.gz --notes-file <no
 
 ```
 Cargo.toml
-build.rs                    → lien libstdc++ (intel_tex_2) ; plus tard Blueprint (.blp → .ui) + GResource
+build.rs                    → lien libstdc++ (intel_tex_2)
 install.sh                  → appelle scripts/setup-venv.sh, binaires dans ~/.local/bin, .desktop
 scripts/
   setup-venv.sh             → venv psd-tools (version figée ici seulement)
   release.sh                → vérifs, archive, tag, gh release
 data/
-  ui/*.blp, icons/, *.desktop.in
+  icons/                    → icône couleur + symbolique
+  io.github.fdeslongchamps.Ddsnap.desktop
 helper/
-  psd_helper.py             → assistant psd-tools (open, render), embarqué via include_str!, lancé par python -I -c
+  psd_helper.py             → assistant psd-tools (open, render, saved, layer), embarqué via include_str!, lancé par python -I -c
   test_psd_helper.py        → tests pytest de l'assistant
   bench_psd_helper.py       → banc : temps open/render, écart avec le composite Photoshop
 src/
@@ -264,15 +268,19 @@ src/
     diagnostics.rs          → journal, rapport copiable, doctor
   bin/
     ddsnap.rs               → CLI
-    ddsnap-gui.rs           → point d'entrée AdwApplication
-  ui/                       → widgets, présentation uniquement
-    window.rs, layer_tree.rs, preview.rs, outputs_panel.rs
+    ddsnap-gui.rs           → point d'entrée AdwApplication, inclut ui/ par #[path]
+  ui/                       → présentation uniquement, hors de lib.rs (ADR-006)
+    mod.rs                  → application, raccourcis
+    window.rs               → fenêtre : sorties, calques, aperçu, export, journal
+    preview.rs              → fusion GSK des calques, vues RVB / Alpha
+    worker.rs               → thread de travail, session de l'assistant
 tests/
   integration.rs            → #[ignore], PSD générés par psd-tools au moment du test
   fixtures/                 → réponses JSON enregistrées de l'assistant, make_psd.py
 docs/
   decisions/                → ADR-001 assistant psd-tools, ADR-002 core synchrone,
-                              ADR-003 image_dds, ADR-004 recette sidecar
+                              ADR-003 image_dds, ADR-004 recette sidecar, ADR-005 aperçu GPU,
+                              ADR-006 GUI en code, ADR-007 présentation générique
 CHANGELOG.md
 SPEC.md
 ```
@@ -370,6 +378,8 @@ pub fn auto_format(rgba: &[u8]) -> DdsFormat {
 - **Export « tel quel »** par l'image aplatie enregistrée par Photoshop quand la visibilité de
   la sortie est celle du PSD ; psd-tools sinon (ADR-005).
 - Releases GitHub publiées à chaque jalon sans redemander (dépôt privé).
+- **GUI construite en Rust**, sans Blueprint ; `ui/` hors de la bibliothèque (ADR-006).
+- **Présentation générique** « calques PSD → textures DDS » et icône sans voiture (ADR-007).
 
 - Nom : **Ddsnap** (binaires `ddsnap` et `ddsnap-gui`).
 - Recette à côté du PSD : `<nom>.ddsnap.json`.

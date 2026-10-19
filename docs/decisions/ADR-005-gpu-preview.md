@@ -1,6 +1,7 @@
 # ADR-005 — Aperçu fusionné sur le GPU, composite Photoshop pour l'export « tel quel »
 
-Statut : accepté par l'utilisateur · 2026-10-19
+Statut : accepté par l'utilisateur · 2026-10-19 · mise en œuvre : ADR-006 (extraction calque par
+calque, nœuds GSK assemblés directement)
 
 ## Contexte
 
