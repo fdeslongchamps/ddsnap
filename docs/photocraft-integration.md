@@ -49,3 +49,11 @@ répond vraiment : une commande « Exporter en texture (DDS)… » dans PhotoCra
 mipmaps, comme le plug-in NVIDIA de Photoshop). Une version locale (fork) sans PR est possible,
 mais PhotoCraft fusionne des dizaines de PR par jour : la garder à jour coûterait cher.
 La piste 1 reste un pont utile en attendant.
+
+## Décision (2026-10-19)
+
+L'utilisateur enregistre son PSD dans PhotoCraft, puis ouvre ce PSD dans Ddsnap. Aucun
+changement dans PhotoCraft, aucun plug-in. L'aller-retour automatique (choisir `.dds` dans
+PhotoCraft → Ddsnap s'ouvre → se ferme) demanderait du code dans PhotoCraft : écarté pour
+l'instant. À vérifier sur un vrai fichier : les PSD écrits par PhotoCraft contiennent-ils
+l'image aplatie ? Sinon l'export « tel quel » passe par psd-tools (plus lent).
