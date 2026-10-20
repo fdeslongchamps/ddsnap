@@ -30,6 +30,16 @@ enum Cmd {
     },
     /// Vérifie Python et psd-tools, affiche versions et fin du journal
     Doctor,
+    /// Convertit un DDS en PSD d'un seul calque, pour le retoucher dans un éditeur sans DDS
+    ToPsd {
+        dds: PathBuf,
+        /// PSD à écrire (défaut : <nom>.psd à côté du DDS, <nom>-dds.psd s'il existe déjà)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        /// Remplace le PSD s'il existe déjà
+        #[arg(long)]
+        force: bool,
+    },
     /// Exporte les sorties de <psd>.ddsnap.json (sans recette : les calques visibles du PSD)
     Export {
         psd: PathBuf,
@@ -70,6 +80,18 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             if report.starts_with("PROBLÈME") {
                 return Err("environnement incomplet (voir ci-dessus)".into());
             }
+        }
+        Cmd::ToPsd { dds, output, force } => {
+            let dest = output.unwrap_or_else(|| export::psd_for_dds(&dds));
+            if dest.exists() && !force {
+                return Err(format!(
+                    "{} existe déjà (--force pour le remplacer, -o pour un autre nom)",
+                    dest.display()
+                )
+                .into());
+            }
+            let (width, height) = export::dds_to_psd(&mut Helper::spawn()?, &dds, &dest)?;
+            println!("{} ({width}×{height}, 1 calque)", dest.display());
         }
         Cmd::Layers { psd, json } => {
             let tree = Helper::spawn()?.open(&psd)?;

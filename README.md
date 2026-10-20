@@ -2,7 +2,7 @@
 
 Choisir des calques d'un PSD et les exporter en textures DDS (BC1/BC3/BC7, mipmaps) pour les jeux, les mods et les skins. Né pour les skins Assetto Corsa, utilisable pour toute texture DDS. Spec : [SPEC.md](SPEC.md) · décisions : [docs/decisions/](docs/decisions/).
 
-État : CLI (`ddsnap layers`, `ddsnap export`) et application GNOME (`ddsnap-gui`, à tester).
+État : CLI (`ddsnap layers`, `ddsnap export`, `ddsnap to-psd`) et application GNOME (`ddsnap-gui`, à tester).
 
 ## Application
 
@@ -20,6 +20,10 @@ réglages et le dossier de sortie (par défaut celui du PSD, donc celui de la sk
 calques à dessiner. À droite : l'aperçu (calques extraits une fois, puis fusionnés par la
 carte graphique ; Menu › Sans aperçu pour s'en passer). Ctrl+E exporte la sortie choisie,
 Ctrl+Maj+E toutes. La barre du bas montre chaque étape ; le bouton terminal ouvre le journal.
+
+Second mode, DDS → PSD : ouvrez ou glissez un `.dds` et Ddsnap l'enregistre en PSD d'un seul
+calque, pour le retoucher dans un éditeur qui n'ouvre pas les DDS (PhotoCraft…). Le PSD
+retouché revient ensuite dans Ddsnap comme n'importe quel PSD ([ADR-008](docs/decisions/ADR-008-dds-to-psd.md)).
 
 ## Tester sur un vrai PSD
 
@@ -51,6 +55,7 @@ minutes.
 ```bash
 ddsnap layers livery.psd [--json]
 ddsnap doctor
+ddsnap to-psd texture.dds [-o texture.psd] [--force]   # DDS → PSD d'un calque
 ddsnap export livery.psd [--output livery] [--out-dir dossier] [--format auto|bc1|bc3|bc7|rgba8] [--size source|4096|2048|1024] [--no-mipmaps]
 ```
 

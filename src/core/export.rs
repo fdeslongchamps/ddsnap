@@ -44,6 +44,7 @@ pub enum ExportError {
     Helper(HelperError),
     Dds(DdsError),
     Io(PathBuf, io::Error),
+    Read(PathBuf, io::Error),
 }
 
 impl fmt::Display for ExportError {
@@ -52,6 +53,7 @@ impl fmt::Display for ExportError {
             Self::Helper(e) => e.fmt(f),
             Self::Dds(e) => e.fmt(f),
             Self::Io(path, e) => write!(f, "écriture de {} : {e}", path.display()),
+            Self::Read(path, e) => write!(f, "lecture de {} : {e}", path.display()),
         }
     }
 }
@@ -128,6 +130,29 @@ pub fn export(
         bytes: bytes.len(),
         warnings,
     })
+}
+
+/// Default PSD for `dds`: `<name>.psd`, or `<name>-dds.psd` when that one exists (likely the
+/// PSD the DDS was made from, which must not be overwritten).
+pub fn psd_for_dds(dds: &Path) -> PathBuf {
+    let psd = dds.with_extension("psd");
+    if !psd.exists() {
+        return psd;
+    }
+    let stem = dds.file_stem().unwrap_or_default().to_string_lossy();
+    dds.with_file_name(format!("{stem}-dds.psd"))
+}
+
+/// DDS → PSD mode, for editors that cannot open DDS: decodes the full-size level of `dds`
+/// and writes it to `dest` as a one-layer PSD. Replaces `dest`: callers check before.
+/// Returns the image size.
+pub fn dds_to_psd(helper: &mut Helper, dds: &Path, dest: &Path) -> Result<(u32, u32), ExportError> {
+    let bytes = fs::read(dds).map_err(|e| ExportError::Read(dds.to_path_buf(), e))?;
+    let image = dds::decode(&bytes)?;
+    let psd = helper.to_psd(&image)?;
+    write_atomic(dest, |f| f.write_all(&psd))
+        .map_err(|e| ExportError::Io(dest.to_path_buf(), e))?;
+    Ok((image.width, image.height))
 }
 
 /// Writes through a temporary file in the same folder, then renames it over `dest`:

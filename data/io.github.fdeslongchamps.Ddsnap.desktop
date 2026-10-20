@@ -6,7 +6,7 @@ Exec=ddsnap-gui %f
 Icon=io.github.fdeslongchamps.Ddsnap
 Terminal=false
 Categories=Graphics;2DGraphics;
-MimeType=image/vnd.adobe.photoshop;image/x-photoshop;
+MimeType=image/vnd.adobe.photoshop;image/x-photoshop;image/vnd-ms.dds;image/x-dds;
 Keywords=dds;psd;texture;layers;calques;mod;skin;game;jeu;
 StartupNotify=true
 # Use the discrete GPU (NVIDIA) for the preview when one is present; GNOME falls back otherwise.

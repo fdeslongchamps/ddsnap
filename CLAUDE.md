@@ -1,7 +1,8 @@
 # Ddsnap
 
 Calques PSD → textures DDS (BC1/BC3/BC7/RGBA8, mipmaps). CLI `ddsnap` + app GNOME `ddsnap-gui`.
-Spec : SPEC.md · plan : tasks/plan.md, tasks/todo.md · décisions : docs/decisions/ADR-001…007.
+Second mode : DDS → PSD d'un calque (`ddsnap to-psd`, ADR-008).
+Spec : SPEC.md · plan : tasks/plan.md, tasks/todo.md · décisions : docs/decisions/ADR-001…008.
 
 ## Stack
 - Rust 2024 ; `src/core/` sans GTK (lib) ; `src/ui/` inclus seulement dans `ddsnap-gui` (ADR-006).
@@ -23,7 +24,7 @@ Spec : SPEC.md · plan : tasks/plan.md, tasks/todo.md · décisions : docs/decis
 - Raccourcis assumés : commentaire `shortcut: <limite>, <quand y revenir>`.
 
 ## Limites
-- Jamais écrire dans le PSD ; jamais laisser un DDS à moitié écrit ; jamais `pip install` hors du venv.
+- Jamais écrire dans le PSD source (DDS → PSD crée un nouveau fichier, jamais par-dessus) ; jamais laisser un DDS à moitié écrit ; jamais `pip install` hors du venv.
 - Demander avant : nouvelle dépendance, changer le moteur PSD/DDS, Flatpak.
 - Les PSD d'exemple (`samples/`, `*.psd`) restent hors de git.
 

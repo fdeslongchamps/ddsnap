@@ -164,7 +164,7 @@ impl Window {
         let welcome = adw::StatusPage::builder()
             .icon_name("image-x-generic-symbolic")
             .title("Déposez un PSD")
-            .description("ou ouvrez-en un avec Ctrl+O. Les DDS sont écrits à côté du PSD, dans le dossier de la skin.")
+            .description("ou ouvrez-en un avec Ctrl+O. Les DDS sont écrits à côté du PSD, dans le dossier de la skin.\nUn DDS déposé est converti en PSD d'un calque, à retoucher dans votre éditeur.")
             .child(&open_big)
             .build();
 
@@ -664,12 +664,13 @@ impl Window {
 
     fn choose_psd(self: &Rc<Self>) {
         let filter = gtk::FileFilter::new();
-        filter.set_name(Some("Photoshop (*.psd)"));
+        filter.set_name(Some("PSD, ou DDS à convertir en PSD"));
         filter.add_suffix("psd");
+        filter.add_suffix("dds");
         let filters = gio::ListStore::new::<gtk::FileFilter>();
         filters.append(&filter);
         let dialog = gtk::FileDialog::builder()
-            .title("Ouvrir un PSD")
+            .title("Ouvrir un PSD ou un DDS")
             .filters(&filters)
             .default_filter(&filter)
             .build();
@@ -688,6 +689,16 @@ impl Window {
     }
 
     pub fn open(self: &Rc<Self>, psd: PathBuf) {
+        if psd
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("dds"))
+        {
+            if std::env::var_os("SMOKE").is_some() {
+                let d = export::psd_for_dds(&psd);
+                return self.convert_dds(psd, d);
+            }
+            return self.choose_dds_target(psd);
+        }
         self.start(move |this| {
             this.log(&format!("ouverture de {}", psd.display()));
             let path = psd.clone();
@@ -703,6 +714,84 @@ impl Window {
                 },
             );
         });
+    }
+
+    // ── DDS → PSD ──────────────────────────────────────────────────────────
+
+    /// Asks where to write the PSD (GTK confirms before replacing a file).
+    fn choose_dds_target(self: &Rc<Self>, dds: PathBuf) {
+        let dest = export::psd_for_dds(&dds);
+        let mut dialog = gtk::FileDialog::builder()
+            .title("Convertir le DDS en PSD")
+            .accept_label("Convertir")
+            .initial_file(&gio::File::for_path(&dest));
+        if let Some(dir) = dest.parent() {
+            dialog = dialog.initial_folder(&gio::File::for_path(dir));
+        }
+        let this = Rc::downgrade(self);
+        dialog
+            .build()
+            .save(Some(&self.window), gio::Cancellable::NONE, move |file| {
+                let Some(this) = this.upgrade() else { return };
+                match file {
+                    Ok(file) => match file.path() {
+                        Some(dest) => this.convert_dds(dds, dest),
+                        None => this.error("Fichier non local", &file.uri()),
+                    },
+                    Err(e) if e.matches(gtk::DialogError::Dismissed) => {}
+                    Err(e) => this.error("Sélecteur de fichiers indisponible", &e.to_string()),
+                }
+            });
+    }
+
+    fn convert_dds(self: &Rc<Self>, dds: PathBuf, dest: PathBuf) {
+        let open_psd = self.state.borrow().psd.clone();
+        if open_psd.is_some_and(|p| p == dest) {
+            return self.error(
+                "PSD ouvert dans Ddsnap",
+                "Choisissez un autre nom : ce PSD est celui ouvert en ce moment.",
+            );
+        }
+        self.start(move |this| {
+            this.log(&format!("conversion de {} en PSD", dds.display()));
+            let target = dest.clone();
+            this.run_job(
+                false,
+                move |session, tx, _| {
+                    let _ = tx.send(Msg::Step(format!("conversion de {}", dds.display())));
+                    export::dds_to_psd(&mut session.helper, &dds, &target)
+                        .map_err(|e| e.to_string())
+                },
+                move |this, result| match result {
+                    Ok((width, height)) => this.converted(&dest, width, height),
+                    Err(e) => this.error("Conversion impossible", &e),
+                },
+            );
+        });
+    }
+
+    fn converted(&self, psd: &Path, width: u32, height: u32) {
+        self.log(&format!(
+            "écrit : {} ({width}×{height}, 1 calque)",
+            psd.display()
+        ));
+        let toast = adw::Toast::builder()
+            .title(glib::markup_escape_text(&format!(
+                "{} créé ({width}×{height})",
+                psd_name(psd)
+            )))
+            .button_label("Ouvrir avec…")
+            .timeout(10)
+            .build();
+        let file = gio::File::for_path(psd);
+        let window = self.window.clone();
+        toast.connect_button_clicked(move |_| {
+            let launcher = gtk::FileLauncher::new(Some(&file));
+            // Ddsnap itself handles PSD: let the user pick the editor.
+            launcher.set_always_ask(true);
+            launcher.launch(Some(&window), gio::Cancellable::NONE, |_| {});
+        });
+        self.toasts.add_toast(toast);
     }
 
     fn show_psd(self: &Rc<Self>, psd: PathBuf, tree: LayerTree) {

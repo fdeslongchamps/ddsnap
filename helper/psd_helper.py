@@ -9,12 +9,15 @@ Requests:
   {"cmd": "saved"}   # the flattened image Photoshop stored in the file (same answer as render)
   {"cmd": "layer", "index": 3, "scale": 0.25}   # one layer alone (effects, mask, opacity
       applied), for the GPU preview: {"x", "y", "width", "height", "bytes"} + RGBA bytes
+  {"cmd": "to_psd", "width": 4, "height": 2, "bytes": 32} + that many raw RGBA bytes on stdin:
+      a one-layer PSD of that image, answered as {"bytes"} + the PSD file bytes
   {"cmd": "quit"}
 
 A layer is drawn only if it and every group above it are listed in `visible`.
 Errors never end the process: {"ok": false, "kind": "...", "error": "..."}.
 """
 
+import io
 import json
 import os
 import sys
@@ -27,6 +30,7 @@ sys.stdout = sys.stderr
 
 from PIL import Image, ImageChops  # noqa: E402
 from psd_tools import PSDImage  # noqa: E402
+from psd_tools.api.layers import PixelLayer  # noqa: E402
 
 
 class RequestError(Exception):
@@ -142,6 +146,24 @@ class Session:
         return {"width": image.width, "height": image.height, "bytes": len(data)}, data
 
 
+def to_psd(req):
+    width, height, size = req.get("width"), req.get("height"), req.get("bytes")
+    if not all(isinstance(v, int) and v > 0 for v in (width, height)) or size != width * height * 4:
+        raise RequestError("protocol", "to_psd: 'width', 'height' ou 'bytes' invalide")
+    data = sys.stdin.buffer.read(size)
+    if len(data) != size:
+        raise RequestError("protocol", "to_psd: image tronquée")
+    image = Image.frombytes("RGBA", (width, height), data)
+    psd = PSDImage.new("RGBA", image.size)
+    # Private in psd-tools 1.25.0 (pinned): stores the composite's alpha, so readers that use
+    # the flattened image (Ddsnap's saved-image path, viewers) keep the transparency.
+    psd._merged_alpha = True
+    psd.append(PixelLayer.frompil(image, psd, "Texture"))
+    out = io.BytesIO()
+    psd.save(out)
+    return {"bytes": out.tell()}, out.getvalue()
+
+
 def plain_pixels(layer):
     """Fast path for the preview: decoded pixels with raster mask and opacity applied.
 
@@ -182,6 +204,7 @@ def main():
         "render": session.render,
         "saved": session.saved,
         "layer": session.layer,
+        "to_psd": to_psd,
     }
     for line in sys.stdin.buffer:
         if not line.strip():

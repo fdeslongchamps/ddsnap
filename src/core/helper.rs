@@ -77,6 +77,11 @@ struct RenderHeader {
     bytes: usize,
 }
 
+#[derive(Debug, Deserialize)]
+struct PsdHeader {
+    bytes: usize,
+}
+
 /// One layer alone, at preview scale, placed at (`x`, `y`) on the scaled canvas.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LayerImage {
@@ -239,6 +244,29 @@ impl Helper {
             y: pos.y,
             image: self.read_image(&reply)?,
         })
+    }
+
+    /// A one-layer PSD file (bytes) holding `image`, for editors that cannot open DDS.
+    pub fn to_psd(&mut self, image: &Rgba) -> Result<Vec<u8>> {
+        let req = json!({"cmd": "to_psd", "width": image.width, "height": image.height,
+                         "bytes": image.data.len()});
+        let mut line = req.to_string();
+        line.push('\n');
+        // The image follows the request line, like an image follows a `render` answer.
+        let sent = self.stdin.write_all(line.as_bytes()).and_then(|()| {
+            self.stdin.write_all(&image.data)?;
+            self.stdin.flush()
+        });
+        let mut reply = String::new();
+        if sent.is_err() || !matches!(self.stdout.read_line(&mut reply), Ok(1..)) {
+            return Err(self.crashed());
+        }
+        let header: PsdHeader = parse_reply(&reply)?;
+        let mut data = vec![0; header.bytes];
+        if self.stdout.read_exact(&mut data).is_err() {
+            return Err(self.crashed());
+        }
+        Ok(data)
     }
 
     fn read_image(&mut self, reply: &str) -> Result<Rgba> {

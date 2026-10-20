@@ -15,6 +15,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) · versions : 
   barre de progression et journal en direct.
 - Journal `~/.local/state/ddsnap/ddsnap.log` (rotation 5 Mo × 3), `ddsnap doctor`,
   Menu › Diagnostic et « Copier le rapport » sur chaque erreur.
+- Mode DDS → PSD : un `.dds` ouvert ou déposé (ou `ddsnap to-psd`) devient un PSD d'un
+  calque, à retoucher dans un éditeur sans DDS ; l'entrée de menu accepte les DDS.
 - `install.sh` : venv, binaires dans `~/.local/bin`, entrée de menu et icône (couleur + symbolique).
 
 ### Modifié
