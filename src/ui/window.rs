@@ -693,10 +693,6 @@ impl Window {
             .extension()
             .is_some_and(|e| e.eq_ignore_ascii_case("dds"))
         {
-            if std::env::var_os("SMOKE").is_some() {
-                let d = export::psd_for_dds(&psd);
-                return self.convert_dds(psd, d);
-            }
             return self.choose_dds_target(psd);
         }
         self.start(move |this| {
