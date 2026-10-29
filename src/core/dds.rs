@@ -146,14 +146,18 @@ pub struct DdsError(pub String);
 
 impl fmt::Display for DdsError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "encodage DDS : {}", self.0)
+        write!(f, "{}", self.0)
     }
 }
 
 impl std::error::Error for DdsError {}
 
 fn err(e: impl fmt::Display) -> DdsError {
-    DdsError(e.to_string())
+    DdsError(format!("encodage DDS : {e}"))
+}
+
+fn decode_err(e: impl fmt::Display) -> DdsError {
+    DdsError(format!("décodage DDS : {e}"))
 }
 
 /// Encodes to DDS file bytes. `format` must be resolved (not `Auto`).
@@ -206,8 +210,8 @@ pub fn encode(image: &Rgba, format: Format, mipmaps: bool) -> Result<Vec<u8>, Dd
 
 /// Decodes the full-size level, exactly as the game will sample it.
 pub fn decode(bytes: &[u8]) -> Result<Rgba, DdsError> {
-    let dds = Dds::read(bytes).map_err(err)?;
-    let image = image_dds::image_from_dds(&dds, 0).map_err(err)?;
+    let dds = Dds::read(bytes).map_err(decode_err)?;
+    let image = image_dds::image_from_dds(&dds, 0).map_err(decode_err)?;
     Ok(Rgba {
         width: image.width(),
         height: image.height(),
@@ -329,6 +333,12 @@ mod tests {
     fn odd_size_still_encodes() {
         let back = decode(&encode(&gradient(6, 6, 255), Format::Bc1, true).unwrap()).unwrap();
         assert_eq!((back.width, back.height), (6, 6));
+    }
+
+    #[test]
+    fn unreadable_dds_reports_decoding() {
+        let e = decode(b"not a dds file").unwrap_err();
+        assert!(e.to_string().starts_with("décodage DDS : "), "{e}");
     }
 
     #[test]
